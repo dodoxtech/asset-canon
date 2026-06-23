@@ -73,6 +73,8 @@ End users who only generate images and emit atlas/descriptor data can skip it.
 
 ## Pipeline scripts
 
+The skills are **instruction-first**: an agent runs the whole pipeline with its own tools, so a user who just installed the skill never has to fetch or run anything. These scripts are an **optional convenience** that automate the same steps when you're working inside this repo or in CI.
+
 ```bash
 # define the shared style once, validate it, then every asset inherits it
 node scripts/validate-style-profile.mjs --in docs/style-profile.yaml

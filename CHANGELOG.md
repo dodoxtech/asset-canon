@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Instruction-first skills: SKILL.md now describes each pipeline step as work the
+  agent performs with its own tools (generate via the environment's image model,
+  Write/Read/Bash to post-process and record), under the user's normal approval
+  prompts. The `scripts/` are demoted to an **optional** repo/CI convenience —
+  never required, never the only path. A user who only installed the skill is
+  never told to download or run a bundled script.
 - Shared style profile for cross-asset consistency: `docs/style-profile.yaml`
   (copy from `docs/style-profile.example.yaml`) is a single style context every
   generation reads — the design-tokens-as-style-brief pattern applied to image

@@ -1,6 +1,6 @@
 ---
 name: asset-canon
-description: Orchestrator skill for generating production-ready image assets with Codex. Reads an asset brief, selects the right specialist (icon / illustration / sprite / texture / social), drives the codex-imagegen pipeline to produce the image(s), then post-processes (transparent background, resize, webp/png export, deterministic file names) and writes them into the project. Enforces a single consistent palette, fixed canvas sizes, alpha-correct edges, and zero AI slop. Use whenever the user asks to create, generate, redraw, or batch produce visual assets for a website, app, or game.
+description: Orchestrator skill for generating production-ready image assets. Reads an asset brief, selects the right specialist (icon / illustration / sprite / texture / social), drives the image model to produce the image(s), then post-processes (transparent background, resize, webp/png export, deterministic file names) and writes them into the project. Instruction-first — the agent runs the pipeline with its own tools; bundled scripts are an optional repo/CI convenience. Enforces a single consistent palette, fixed canvas sizes, alpha-correct edges, and zero AI slop. Use whenever the user asks to create, generate, redraw, or batch produce visual assets for a website, app, or game.
 ---
 
 # ASSET-CANON — CODEX IMAGE ASSET ORCHESTRATOR
@@ -10,8 +10,20 @@ You are an asset director that turns a short brief into a set of **production-re
 You do not just "make an image." You run a deterministic pipeline:
 
 ```
-BRIEF  ->  PLAN  ->  GENERATE (codex-imagegen)  ->  POST-PROCESS  ->  WRITE  ->  REPORT
+BRIEF  ->  PLAN  ->  GENERATE  ->  POST-PROCESS  ->  WRITE  ->  REPORT
 ```
+
+---
+
+## HOW THIS SKILL RUNS — instruction-first
+
+This skill is a set of **instructions, not a program the user must install.** Carry out each step with the tools you already have: generate through the image model the environment provides, and use Write / Read / Bash to post-process, record, and verify — all under the user's normal approval prompts, where they can see every command.
+
+The `scripts/` in this repo are an **optional convenience** that automate these steps for people working *inside the asset-canon repo or in CI*. They are **never required** and **never the only way**. Rules:
+
+- A user who only installed the skill should **never** be told to download or run a bundled script to get a result.
+- Do the work inline with your own tools by default. Each step below describes the actual procedure; the script is shown only as an *optional shortcut* for repo/CI users.
+- When a step genuinely needs an image library (resize, sheet compositing, alpha keying): use a script that is **already present**, or **write a short, readable helper into the user's own project** and run it with their consent — don't pull in an opaque binary.
 
 ---
 
@@ -81,44 +93,48 @@ Specialist: asset-icon
 
 Route to the matching specialist SKILL.md (`asset-icon`, `asset-illustration`, `asset-sprite`, `asset-texture`, `asset-social`) and follow its art-direction rules for the prompt.
 
-**Persist the style as a shared profile.** Don't keep palette/style only in this transient plan — write it once to `docs/style-profile.yaml` (copy `docs/style-profile.example.yaml`) so every later generation and every other agent inherits the same context. Validate it before generating:
+**Persist the style as a shared profile.** Don't keep palette/style only in this transient plan — write it once (with the Write tool) to `docs/style-profile.yaml` so every later generation and every other agent inherits the same context. Sanity-check it by reading it back: `id`, a hex `palette`, and a `prompt_suffix` are required. See **STYLE PROFILE** below.
 
-```bash
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-style-profile.mjs" --in docs/style-profile.yaml
+> *Optional (repo/CI):* `node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-style-profile.mjs" --in docs/style-profile.yaml` gates the profile automatically.
+
+## 3. GENERATE — drive the image model
+
+Generate each asset with the **image model the environment provides** (the user's configured image generation / API). Build one structured prompt per asset:
+
+```
+<art-directed prompt from specialist>
++ "centered on a solid chroma-green #00B140 background, no green anywhere in the subject"   (transparent assets)
++ the style profile's `prompt_suffix`
++ "Avoid: <the profile's `negative` list>"
 ```
 
-See **STYLE PROFILE** below.
+You apply the shared style yourself: read `docs/style-profile.yaml`, append its `prompt_suffix` and `Avoid: …` to every prompt, and carry its `seed` if the backend supports one — **this is what keeps a batch consistent.** Generate at the **largest** required size once; downscale in post-process. For transparent assets, bake the chroma plate into the prompt (see **CHROMA-KEY BACKGROUND**) and key the green to alpha in post — don't ask the model for "transparent" directly.
 
-## 3. GENERATE — run the pipeline via Codex
+For a batch, generate **sequentially in the same run** and announce progress: `Asset 1 of 3: cart`, `Asset 2 of 3: heart`, …
 
-> **Script paths.** The pipeline scripts ship with the plugin. Commands reference them via `${CLAUDE_PLUGIN_ROOT:-.}/scripts/…` so they resolve to the installed plugin directory regardless of the current working directory — and fall back to `./scripts` when you've cloned the repo and run from its root. These scripts require the Claude Code **plugin install** or a **repo clone**; a guidance-only Agent Skills install (just `SKILL.md`) does not include `scripts/`, so do the steps manually there.
-
-Build one structured prompt per asset and invoke the generation wrapper:
-
-```bash
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/codex-imagegen.mjs" \
-  --prompt "<art-directed prompt from specialist>, centered on a solid chroma-green #00B140 background, no green anywhere in the subject" \
-  --size 1024x1024 \
-  --background opaque \
-  --style-profile docs/style-profile.yaml \
-  --out assets/generated/icons/cart-icon-line-1024x1024.png
-```
-
-The wrapper (`scripts/codex-imagegen.mjs`) calls the image model through the Codex CLI / OpenAI image API. **Pass `--style-profile docs/style-profile.yaml` on every call** so the shared `prompt_suffix` + anti-slop `negative` are appended and the `seed` is locked — this is what keeps a batch consistent. For a batch, loop over the asset list. Generate at the **largest** required size once; downscale in post-process. For transparent assets, bake the chroma plate into the prompt (see **CHROMA-KEY BACKGROUND** above) and key the green to alpha in post-process — don't request `--background transparent` directly.
-
-If only one image can render at a time, generate them **sequentially in the same run** and announce progress: `Asset 1 of 3: cart`, `Asset 2 of 3: heart`, …
+> *Optional (repo/CI):* the wrapper applies the profile and calls the Codex CLI / OpenAI image API for you:
+> ```bash
+> node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/codex-imagegen.mjs" --prompt "<…>" \
+>   --size 1024x1024 --background opaque --style-profile docs/style-profile.yaml \
+>   --out assets/generated/icons/cart-icon-line-1024x1024.png
+> ```
 
 ## 4. POST-PROCESS — make it production-ready
 
-```bash
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/optimize-assets.mjs" --in assets/generated/icons --sizes 512,256,128,64 --formats webp,png --strip
-```
-
-- Downscale to every requested size.
+What has to happen:
+- Key the chroma plate to alpha (transparent assets).
+- Downscale to every requested size (never upscale).
 - Export requested formats (webp for web, png for alpha-critical, ico for favicons).
 - Strip metadata, quantize where lossless allows.
-- For sprites: pack frames into a grid sheet + emit a JSON atlas.
+- For sprites: pack frames into a grid sheet + emit an atlas.
 - For textures: run the seamless-edge check.
+
+These touch real pixels, so they need an image library (e.g. `sharp`). Use whatever is **already available**: if the asset-canon repo is present, its `optimize-assets.mjs` / `pack-sprite.mjs` do this; otherwise write a short, readable helper into the user's project and run it with their consent. Don't make the user fetch and trust an opaque binary.
+
+> *Optional (repo/CI):*
+> ```bash
+> node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/optimize-assets.mjs" --in assets/generated/icons --sizes 512,256,128,64 --formats webp,png --strip
+> ```
 
 ## 5. WRITE + REPORT
 
@@ -139,15 +155,13 @@ Note the descriptor path in the report (`docs/assets/cart.yaml`), then end with 
 
 Goal: an agent that has **never seen the pixels** can read the descriptor and know what the asset depicts, how it looks, and where it belongs. One YAML file per logical asset at `docs/assets/<slug>.yaml`; all size/format variants are listed inside it.
 
-Don't hand-write the YAML — author the descriptive content as a small JSON spec and let the writer fill in the measurable facts (real bytes, pixel dimensions, format, date) and emit canonical YAML, then gate it:
+Write it directly with the Write tool — you authored the prompt and know the content. Get the measurable facts honestly: bytes via `wc -c` / `ls -l`, and pixel dimensions from the size in the filename (or the image tool). List **only files that exist**.
 
-```bash
-# write docs/assets/<id>.yaml from a spec (real dims/bytes measured from disk)
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/write-descriptor.mjs" --spec cart.spec.json
-
-# gate: fail if any descriptor is invalid or any asset has no descriptor
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-descriptors.mjs" --in assets/generated/icons
-```
+> *Optional (repo/CI):* author the descriptive content as a JSON spec and let the writer measure bytes/dims and emit canonical YAML, then gate the batch:
+> ```bash
+> node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/write-descriptor.mjs" --spec cart.spec.json
+> node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-descriptors.mjs" --in assets/generated/icons
+> ```
 
 ```yaml
 # docs/assets/cart.yaml
@@ -216,19 +230,14 @@ Rules: keep `description`/`placement` truthful to what was actually generated; l
 
 A descriptor describes **one output**; the style profile prescribes the **shared input style** that keeps every asset consistent. It is the design-tokens-as-style-brief pattern (Style Dictionary / Penpot) applied to image generation: define the look once in `docs/style-profile.yaml`, and every generation — now or months later, by you or another agent — inherits it.
 
-Copy `docs/style-profile.example.yaml`, fill it in, validate, then pass it to every generate call:
-
-```bash
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-style-profile.mjs" --in docs/style-profile.yaml          # gate
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/codex-imagegen.mjs" --prompt "<…>" --style-profile docs/style-profile.yaml --out <…>
-```
-
-The generator automatically:
-- appends `prompt_suffix` (the positive style anchor) to the prompt,
-- appends `Avoid: <negative…>` (the anti-slop guard),
-- locks `seed` on backends that support it (the Codex executor; gpt-image-1 has no seed parameter, so it's skipped there).
+Use `docs/style-profile.example.yaml` as the shape. Write `docs/style-profile.yaml`, then on **every** generation apply it yourself:
+- append `prompt_suffix` (the positive style anchor) to the prompt,
+- append `Avoid: <negative…>` (the anti-slop guard),
+- carry `seed` if the backend supports one (gpt-image-1 has no seed parameter, so skip it there).
 
 Required fields: `id`, `palette` (hex), `prompt_suffix`. Recommended: `line`, `shading`, `negative`, `seed`. One profile per project (or per brand/sub-theme); commit it so the style is reproducible.
+
+> *Optional (repo/CI):* `validate-style-profile.mjs` gates the profile and `codex-imagegen.mjs --style-profile docs/style-profile.yaml` applies it automatically.
 
 > **Scope note:** this is text/structured conditioning only. Stronger visual locking — passing reference images to gpt-image-1, or a local SD + LoRA backend — is a deliberate future step, not part of this profile.
 

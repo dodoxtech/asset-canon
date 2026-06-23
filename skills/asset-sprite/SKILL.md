@@ -51,15 +51,9 @@ w = cell.w ,  h = cell.h
 
 ## SPRITESHEET PACKING
 
-Run the packer — it lays frames out row-major on the grid above, composes the transparent sheet, and emits the atlas in whichever format(s) the target engine wants:
+Lay frames out row-major on the grid above, then write the atlas yourself with the Write tool — you have the cell size, `columns`, and frame order, so every `x,y,w,h` is the reader math (no library needed for the data). Composing the actual sheet **image** does need an image library; use a script that's already present, or write a short visible helper into the user's project. Emit the atlas in whatever format(s) the target engine reads.
 
-```bash
-# json = native schema; xml = TexturePacker/Starling; texturepacker = JSON-Hash (Phaser/PixiJS/Godot)
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/pack-sprite.mjs" --in assets/generated/sprites/hero_run \
-  --name hero_run --columns 8 --fps 12 --formats json,xml,texturepacker
-```
-
-It packs frames in name order and emits an atlas that carries the playback contract (cell, columns, count, fps, loop, anchor) — not just per-frame boxes:
+The atlas carries the playback contract (cell, columns, count, fps, loop, anchor) — not just per-frame boxes:
 ```json
 {
   "meta": {
@@ -79,9 +73,15 @@ It packs frames in name order and emits an atlas that carries the playback contr
   }
 }
 ```
-With `meta` alone a script reconstructs every frame rect via the reader math; `frames` is a convenience/verification map. Multiple actions → either one row per action (pass `--clips run:0-7,jump:8-11`) or one sheet+atlas per action.
+With `meta` alone a reader reconstructs every frame rect via the reader math; `frames` is a convenience/verification map. Multiple actions → either one row per action (with a `clips` map like `{ "run": [0,7], "jump": [8,11] }`) or one sheet+atlas per action.
 
-**Atlas format options** (`--formats`, pick what the engine reads):
+> *Optional (repo/CI):* the packer composes the sheet and emits all formats in one go —
+> ```bash
+> node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/pack-sprite.mjs" --in assets/generated/sprites/hero_run \
+>   --name hero_run --columns 8 --fps 12 --formats json,xml,texturepacker --clips run:0-7,jump:8-11
+> ```
+
+**Atlas format options** (pick what the engine reads):
 | Format | File | Reads natively |
 |---|---|---|
 | `json` | `<name>.json` | asset-canon native schema (full playback contract) |
@@ -97,7 +97,7 @@ All formats carry the same `x,y,w,h` per frame, so the sheet cuts identically wh
 - [ ] `sheet.w == columns·cell.w` and `sheet.h == ceil(count/columns)·cell.h` — reader math resolves.
 - [ ] Every frame identical canvas + shared anchor pixel (no subject drift across frames).
 - [ ] Frames zero-padded and named in playback order; atlas `meta` carries cell/columns/count/fps/loop/anchor.
-- [ ] Atlas emitted in the format the target engine reads (`--formats json,xml,texturepacker`).
+- [ ] Atlas emitted in the format the target engine reads (json native / xml Starling / texturepacker JSON-Hash).
 - [ ] Palette stays within the locked index set.
 - [ ] Tiles pass the seamless-edge check (delegate to asset-texture check).
 - [ ] Sidecar `docs/assets/<slug>.yaml` written, including the `animation` block (cell/columns/count/fps/loop/anchor/clips) so motion is reconstructable without opening the sheet.
