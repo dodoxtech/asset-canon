@@ -17,16 +17,16 @@ drive activation, so editing one can silently break routing for another.
 
 | # | Prompt | Expected specialist | Result |
 |---|--------|---------------------|--------|
-| 1 | "tạo favicon cho website của tôi" | asset-icon | ☐ |
+| 1 | "create a favicon for my website" | asset-icon | ☐ |
 | 2 | "make a set of 5 navbar icons: home, search, cart, user, settings" | asset-icon | ☐ |
 | 3 | "generate an iOS app icon, 1024px" | asset-icon | ☐ |
-| 4 | "vẽ hero illustration cho landing page SaaS" | asset-illustration | ☐ |
+| 4 | "draw a hero illustration for a SaaS landing page" | asset-illustration | ☐ |
 | 5 | "I need empty-state art for an inbox screen" | asset-illustration | ☐ |
 | 6 | "make a character sprite for my platformer game" | asset-sprite | ☐ |
 | 7 | "generate a tileset of grass and stone tiles" | asset-sprite | ☐ |
-| 8 | "tôi cần background pattern lặp được, không thấy đường nối" | asset-texture | ☐ |
+| 8 | "I need a repeating background pattern with no visible seams" | asset-texture | ☐ |
 | 9 | "seamless concrete surface texture for a hero bg" | asset-texture | ☐ |
-| 10 | "tạo ảnh OG cho bài blog để share facebook" | asset-social | ☐ |
+| 10 | "create an OG image for a blog post to share on Facebook" | asset-social | ☐ |
 | 11 | "make a YouTube thumbnail, 1280x720" | asset-social | ☐ |
 
 ## Disambiguation cases (easy to route wrong)
