@@ -84,17 +84,19 @@ Route to the matching specialist SKILL.md (`asset-icon`, `asset-illustration`, `
 **Persist the style as a shared profile.** Don't keep palette/style only in this transient plan — write it once to `docs/style-profile.yaml` (copy `docs/style-profile.example.yaml`) so every later generation and every other agent inherits the same context. Validate it before generating:
 
 ```bash
-node scripts/validate-style-profile.mjs --in docs/style-profile.yaml
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-style-profile.mjs" --in docs/style-profile.yaml
 ```
 
 See **STYLE PROFILE** below.
 
 ## 3. GENERATE — run the pipeline via Codex
 
+> **Script paths.** The pipeline scripts ship with the plugin. Commands reference them via `${CLAUDE_PLUGIN_ROOT:-.}/scripts/…` so they resolve to the installed plugin directory regardless of the current working directory — and fall back to `./scripts` when you've cloned the repo and run from its root. These scripts require the Claude Code **plugin install** or a **repo clone**; a guidance-only Agent Skills install (just `SKILL.md`) does not include `scripts/`, so do the steps manually there.
+
 Build one structured prompt per asset and invoke the generation wrapper:
 
 ```bash
-node scripts/codex-imagegen.mjs \
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/codex-imagegen.mjs" \
   --prompt "<art-directed prompt from specialist>, centered on a solid chroma-green #00B140 background, no green anywhere in the subject" \
   --size 1024x1024 \
   --background opaque \
@@ -109,7 +111,7 @@ If only one image can render at a time, generate them **sequentially in the same
 ## 4. POST-PROCESS — make it production-ready
 
 ```bash
-node scripts/optimize-assets.mjs --in assets/generated/icons --sizes 512,256,128,64 --formats webp,png --strip
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/optimize-assets.mjs" --in assets/generated/icons --sizes 512,256,128,64 --formats webp,png --strip
 ```
 
 - Downscale to every requested size.
@@ -141,10 +143,10 @@ Don't hand-write the YAML — author the descriptive content as a small JSON spe
 
 ```bash
 # write docs/assets/<id>.yaml from a spec (real dims/bytes measured from disk)
-node scripts/write-descriptor.mjs --spec cart.spec.json
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/write-descriptor.mjs" --spec cart.spec.json
 
 # gate: fail if any descriptor is invalid or any asset has no descriptor
-node scripts/validate-descriptors.mjs --in assets/generated/icons
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-descriptors.mjs" --in assets/generated/icons
 ```
 
 ```yaml
@@ -217,8 +219,8 @@ A descriptor describes **one output**; the style profile prescribes the **shared
 Copy `docs/style-profile.example.yaml`, fill it in, validate, then pass it to every generate call:
 
 ```bash
-node scripts/validate-style-profile.mjs --in docs/style-profile.yaml          # gate
-node scripts/codex-imagegen.mjs --prompt "<…>" --style-profile docs/style-profile.yaml --out <…>
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-style-profile.mjs" --in docs/style-profile.yaml          # gate
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/codex-imagegen.mjs" --prompt "<…>" --style-profile docs/style-profile.yaml --out <…>
 ```
 
 The generator automatically:

@@ -55,7 +55,7 @@ Run the packer — it lays frames out row-major on the grid above, composes the 
 
 ```bash
 # json = native schema; xml = TexturePacker/Starling; texturepacker = JSON-Hash (Phaser/PixiJS/Godot)
-node scripts/pack-sprite.mjs --in assets/generated/sprites/hero_run \
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/pack-sprite.mjs" --in assets/generated/sprites/hero_run \
   --name hero_run --columns 8 --fps 12 --formats json,xml,texturepacker
 ```
 
