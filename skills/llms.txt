@@ -1,0 +1,6 @@
+asset-canon: The orchestrator skill. Reads an asset brief, picks the right specialist skill, drives Codex to generate the image asset(s) via the codex-imagegen pipeline, then optimizes and writes them to the project. Deterministic naming, single consistent palette, no AI slop.
+asset-icon: Generate icon sets and app icons — favicons, PWA icons, macOS/iOS app icons, monochrome line/glyph icon families with consistent grid, stroke, and corner radius.
+asset-illustration: Generate hero illustrations, spot illustrations, and empty-state art with a coherent style system (palette, line weight, shading model) reusable across a whole product.
+asset-sprite: Generate game sprites and spritesheets — characters, items, tiles — with fixed canvas, consistent pixel/vector style, alpha background, and frame-grid packing for animation.
+asset-texture: Generate seamless tileable textures and patterns — backgrounds, surfaces, noise, gradients — verified for edge-wrap continuity.
+asset-social: Generate social/OG images — Open Graph cards, Twitter cards, thumbnails, banners — at exact platform dimensions with safe-area-aware typography and a single brand palette.
