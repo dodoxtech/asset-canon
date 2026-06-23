@@ -19,11 +19,13 @@
   ],
   "bin": {
     "asset-canon-gen": "scripts/codex-imagegen.mjs",
-    "asset-canon-optimize": "scripts/optimize-assets.mjs"
+    "asset-canon-optimize": "scripts/optimize-assets.mjs",
+    "asset-canon-qa": "scripts/asset-qa.mjs"
   },
   "scripts": {
     "gen": "node scripts/codex-imagegen.mjs",
-    "optimize": "node scripts/optimize-assets.mjs"
+    "optimize": "node scripts/optimize-assets.mjs",
+    "qa": "node scripts/asset-qa.mjs"
   },
   "optionalDependencies": {
     "sharp": "^0.33.0"
