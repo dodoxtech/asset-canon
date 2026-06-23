@@ -1,0 +1,21 @@
+{
+  "name": "asset-canon",
+  "description": "Codex-driven image asset generation skills + commands: icons, illustrations, sprites, textures, and social/OG images — production-ready, deterministic, optimized output",
+  "version": "0.1.0",
+  "author": {
+    "name": "dodoxtech",
+    "email": ""
+  },
+  "homepage": "https://github.com/dodoxtech/asset-canon",
+  "repository": "https://github.com/dodoxtech/asset-canon",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "codex",
+    "image-generation",
+    "assets",
+    "icons",
+    "sprites",
+    "og-image"
+  ]
+}

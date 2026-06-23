@@ -1,0 +1,20 @@
+{
+  "name": "asset-canon",
+  "description": "Asset-Canon — Codex-powered image asset generation library: skills and commands for icons, illustrations, sprites, textures, and social images",
+  "owner": {
+    "name": "dodoxtech",
+    "email": ""
+  },
+  "plugins": [
+    {
+      "name": "asset-canon",
+      "description": "Codex-driven image asset generation skills + commands",
+      "version": "0.1.0",
+      "source": "./",
+      "author": {
+        "name": "dodoxtech",
+        "email": ""
+      }
+    }
+  ]
+}
