@@ -17,13 +17,14 @@ BRIEF  ->  PLAN  ->  GENERATE (codex-imagegen)  ->  POST-PROCESS  ->  WRITE  -> 
 
 ## 0. HARD RULES — READ FIRST
 
-1. **Every asset is a real file on disk.** Never return a description in place of an actual generated file. If you cannot run the pipeline, say so explicitly.
-2. **One consistent palette per batch.** All assets in a single request share one palette, one line weight, one shading model. Define it once in the PLAN and reuse it.
-3. **Fixed canvas, never "approximately."** Each asset type has exact target dimensions. Generate at the largest target, then downscale — never upscale.
-4. **Transparent where it matters.** Icons, sprites, illustrations with no background → alpha PNG. Verify the background is actually transparent, not white.
-5. **Deterministic names.** Files use `<slug>-<variant>-<WxH>.<ext>` (e.g. `cart-icon-line-512x512.png`). No spaces, no timestamps, lowercase kebab-case.
-6. **No AI slop.** No purple/blue glow defaults, no meaningless floating blobs, no fake-3D bevels unless the brief asks. Match the brand, not the model's defaults.
-7. **Key out a chroma plate — don't trust "transparent".** For any asset that needs a transparent background (icon, sprite, illustration), generate it on a solid **chroma-green** plate (`#00B140`) and key that green to alpha in post. Direct "transparent" output leaves white halos and ragged alpha. **The asset's own colors must avoid the green family (~`#00A040`–`#40FF80`)** — if any part of the subject uses that green, keying will punch holes in the asset. If the subject is naturally green (a leaf, a frog, money), switch to a **chroma-magenta** plate (`#FF00FF`) and forbid magenta instead. Full-bleed assets (texture, social) keep their background and skip this.
+1. **Pixels come from an image model — never from code.** Every asset must be rendered by an image-generation **API/model** (the `codex-imagegen` wrapper, OpenAI Images, or ChatGPT image generation). **Do NOT fabricate the image by drawing it in code** — no canvas/`<canvas>` rendering, no hand-written SVG/HTML/CSS "art", no ASCII, no programmatic shape-drawing dressed up as the asset. Those are not production art and will look like it. If no image model is reachable (no API key, wrapper fails, offline), **stop and say so immediately** — e.g. *"Can't generate: no image model available. I won't hand-draw this in code because the quality won't be acceptable."* — and wait for the user. Never silently substitute a code-drawn placeholder.
+2. **Every asset is a real file on disk.** Never return a description in place of an actual generated file. If you cannot run the pipeline, say so explicitly.
+3. **One consistent palette per batch.** All assets in a single request share one palette, one line weight, one shading model. Define it once in the PLAN and reuse it.
+4. **Fixed canvas, never "approximately."** Each asset type has exact target dimensions. Generate at the largest target, then downscale — never upscale.
+5. **Transparent where it matters.** Icons, sprites, illustrations with no background → alpha PNG. Verify the background is actually transparent, not white.
+6. **Deterministic names.** Files use `<slug>-<variant>-<WxH>.<ext>` (e.g. `cart-icon-line-512x512.png`). No spaces, no timestamps, lowercase kebab-case.
+7. **No AI slop.** No purple/blue glow defaults, no meaningless floating blobs, no fake-3D bevels unless the brief asks. Match the brand, not the model's defaults.
+8. **Key out a chroma plate — don't trust "transparent".** For any asset that needs a transparent background (icon, sprite, illustration), generate it on a solid **chroma-green** plate (`#00B140`) and key that green to alpha in post. Direct "transparent" output leaves white halos and ragged alpha. **The asset's own colors must avoid the green family (~`#00A040`–`#40FF80`)** — if any part of the subject uses that green, keying will punch holes in the asset. If the subject is naturally green (a leaf, a frog, money), switch to a **chroma-magenta** plate (`#FF00FF`) and forbid magenta instead. Full-bleed assets (texture, social) keep their background and skip this.
 
 ---
 
