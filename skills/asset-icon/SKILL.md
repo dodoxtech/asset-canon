@@ -24,10 +24,16 @@ Generate icon **families** — not one-off pictures. Consistency across the set 
 | Android | 1024×1024 | adaptive fg+bg layers, 432 mipmaps |
 
 ## PROMPT TEMPLATE (per icon, fed to codex-imagegen)
-> "Minimal {style} icon of {subject}, {stroke}px stroke, {radius}px rounded corners, centered on a 24px grid with even padding, single color {fg} on transparent background, flat, no shadow, no gradient, no background shape, pixel-crisp edges."
+> "Minimal {style} icon of {subject}, {stroke}px stroke, {radius}px rounded corners, centered on a 24px grid with even padding, single color {fg} on a solid chroma-green #00B140 background, no green in the icon itself, flat, no shadow, no gradient, no background shape, pixel-crisp edges."
+
+Generate on the chroma plate, then key `#00B140` to alpha in post (see **CHROMA-KEY BACKGROUND** in `asset-canon`). Never request "transparent" directly. If the icon's own color is green, set `{fg}` away from green or swap the plate to chroma-magenta `#FF00FF`.
+
+**GOOD:** charcoal `#1A1A1A` cart glyph on a `#00B140` plate → keying leaves a clean, halo-free glyph.
+**BAD:** a green recycling glyph on a `#00B140` plate → keying deletes the glyph's own green strokes, leaving a broken icon.
 
 ## CHECKS BEFORE WRITING
-- [ ] Background actually transparent (not white).
+- [ ] Background actually transparent (chroma-green fully keyed out, not white).
+- [ ] Icon color avoids the plate's green family — no interior holes after keying.
 - [ ] All icons share stroke + radius + optical size.
 - [ ] App icons that forbid alpha are flattened on the brand bg.
 - [ ] Favicon ladder + apple-touch + maskable generated.

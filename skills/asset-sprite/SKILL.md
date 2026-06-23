@@ -23,7 +23,12 @@ Game art needs **strict consistency** in scale, palette, and pixel grid so sprit
 | Animation | N frames same canvas | packed sheet + atlas.json |
 
 ## PROMPT TEMPLATE
-> "{style} game sprite of {subject}, {camera} view, {palette} palette, {light} lighting, {outline} outline, centered on a {NxN} grid, transparent background, no drop shadow on the canvas, crisp edges."
+> "{style} game sprite of {subject}, {camera} view, {palette} palette, {light} lighting, {outline} outline, centered on a {NxN} grid, on a solid chroma-green #00B140 background with no green in the sprite, no drop shadow on the canvas, crisp edges."
+
+Generate on the chroma plate, then key `#00B140` to alpha in post (see **CHROMA-KEY BACKGROUND** in `asset-canon`). Never request "transparent" directly. **Reserve one slot of the locked palette as the chroma plate and exclude it from every sprite** so keying never eats sprite pixels. If sprites are predominantly green (forests, slimes), switch the plate to chroma-magenta `#FF00FF` for the whole set.
+
+**GOOD:** a red-and-steel knight on a `#00B140` plate → keying yields clean alpha around the silhouette.
+**BAD:** a green slime on a `#00B140` plate → keying punches a hole through the slime; use a `#FF00FF` plate instead.
 
 ## SPRITESHEET PACKING
 After generating frames, pack into a grid sheet and emit:
@@ -32,6 +37,8 @@ After generating frames, pack into a grid sheet and emit:
 ```
 
 ## CHECKS
+- [ ] Chroma plate fully keyed to alpha; sprite has no interior holes from keying.
+- [ ] Sprite palette excludes the plate color (green family, or magenta if plated magenta).
 - [ ] Every frame identical canvas + registration point.
 - [ ] Palette stays within the locked index set.
 - [ ] Tiles pass the seamless-edge check (delegate to asset-texture check).

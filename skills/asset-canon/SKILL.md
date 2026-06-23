@@ -23,6 +23,32 @@ BRIEF  ->  PLAN  ->  GENERATE (codex-imagegen)  ->  POST-PROCESS  ->  WRITE  -> 
 4. **Transparent where it matters.** Icons, sprites, illustrations with no background → alpha PNG. Verify the background is actually transparent, not white.
 5. **Deterministic names.** Files use `<slug>-<variant>-<WxH>.<ext>` (e.g. `cart-icon-line-512x512.png`). No spaces, no timestamps, lowercase kebab-case.
 6. **No AI slop.** No purple/blue glow defaults, no meaningless floating blobs, no fake-3D bevels unless the brief asks. Match the brand, not the model's defaults.
+7. **Key out a chroma plate — don't trust "transparent".** For any asset that needs a transparent background (icon, sprite, illustration), generate it on a solid **chroma-green** plate (`#00B140`) and key that green to alpha in post. Direct "transparent" output leaves white halos and ragged alpha. **The asset's own colors must avoid the green family (~`#00A040`–`#40FF80`)** — if any part of the subject uses that green, keying will punch holes in the asset. If the subject is naturally green (a leaf, a frog, money), switch to a **chroma-magenta** plate (`#FF00FF`) and forbid magenta instead. Full-bleed assets (texture, social) keep their background and skip this.
+
+---
+
+## CHROMA-KEY BACKGROUND (transparent assets)
+
+The plate exists only to be deleted. Pick the plate color that is *furthest* from everything in the asset, then forbid that color in the subject.
+
+```
+GOOD  ┌───────────────┐      BAD   ┌───────────────┐
+      │███████████████│            │███████████████│
+      │███┌───────┐███│            │███┌──▓▓▓──┐███│  ← asset uses the SAME green
+      │███│ asset │███│            │███│ as▓et │███│    as the plate
+      │███│ #FF5C │███│            │███│ #2FE0 │███│
+      │███└───────┘███│            │███└──▓▓▓──┘███│
+      │███████████████│            │███████████████│
+      └───────────────┘            └───────────────┘
+   plate #00B140, asset has         keying #00B140 also deletes the
+   zero green → clean alpha cut      green pixels INSIDE the asset → holes
+```
+
+- **GOOD:** plate `#00B140`; asset palette is orange/charcoal/cream with no greens. Keying the green yields crisp, hole-free alpha edges.
+- **BAD:** plate `#00B140`; asset has a green leaf/badge in the same hue range. Keying eats the leaf, leaving transparent gaps mid-asset.
+- **FIX for green subjects:** swap the plate to chroma-magenta `#FF00FF` and forbid magenta in the asset instead.
+
+Verify after keying: the background reads fully transparent **and** the subject is intact with no interior holes (`scripts/asset-qa.mjs` alpha check).
 
 ---
 
@@ -59,13 +85,13 @@ Build one structured prompt per asset and invoke the generation wrapper:
 
 ```bash
 node scripts/codex-imagegen.mjs \
-  --prompt "<art-directed prompt from specialist>" \
+  --prompt "<art-directed prompt from specialist>, centered on a solid chroma-green #00B140 background, no green anywhere in the subject" \
   --size 1024x1024 \
-  --background transparent \
+  --background opaque \
   --out assets/generated/icons/cart-icon-line-1024x1024.png
 ```
 
-The wrapper (`scripts/codex-imagegen.mjs`) calls the image model through the Codex CLI / OpenAI image API. For a batch, loop over the asset list. Generate at the **largest** required size once; downscale in post-process.
+The wrapper (`scripts/codex-imagegen.mjs`) calls the image model through the Codex CLI / OpenAI image API. For a batch, loop over the asset list. Generate at the **largest** required size once; downscale in post-process. For transparent assets, bake the chroma plate into the prompt (see **CHROMA-KEY BACKGROUND** above) and key the green to alpha in post-process — don't request `--background transparent` directly.
 
 If only one image can render at a time, generate them **sequentially in the same run** and announce progress: `Asset 1 of 3: cart`, `Asset 2 of 3: heart`, …
 
