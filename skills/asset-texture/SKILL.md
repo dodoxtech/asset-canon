@@ -33,5 +33,6 @@ Only ship after a clean 2×2 tile.
 - [ ] Low contrast / no focal point so foreground content stays readable.
 - [ ] Within the 1–3 color budget; verify with `asset-qa --max-colors 3`.
 - [ ] Exported at the declared tile size, no upscale.
+- [ ] Sidecar `docs/assets/<slug>.yaml` written, with `tileable: true` + `tile_size` + `tonality` so it's reused without opening the image.
 
 Run through the `asset-canon` pipeline.

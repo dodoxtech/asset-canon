@@ -35,5 +35,6 @@ Social images live at **exact platform sizes** with hard safe areas. Get the dim
 - [ ] Key content inside the safe area (inner 90%).
 - [ ] Headline text overlaid via SVG/HTML, not baked/warped into the raster.
 - [ ] Single brand palette, one accent — consistent with the site.
+- [ ] Sidecar `docs/assets/<slug>.yaml` written, with `platform`, `safe_area`, and `text_overlay` notes so it's reused without opening the image.
 
 Run through the `asset-canon` pipeline.

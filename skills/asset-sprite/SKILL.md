@@ -82,5 +82,6 @@ With `meta` alone a script reconstructs every frame rect via the reader math; `f
 - [ ] Frames zero-padded and named in playback order; atlas `meta` carries cell/columns/count/fps/loop/anchor.
 - [ ] Palette stays within the locked index set.
 - [ ] Tiles pass the seamless-edge check (delegate to asset-texture check).
+- [ ] Sidecar `docs/assets/<slug>.yaml` written, including the `animation` block (cell/columns/count/fps/loop/anchor/clips) so motion is reconstructable without opening the sheet.
 
 Run through the `asset-canon` pipeline.

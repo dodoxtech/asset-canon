@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Sidecar descriptors: every generated asset now ships with a YAML descriptor in
+  `docs/assets/<id>.yaml` (HARD RULE #8) so another agent can place it without
+  opening the image. New `scripts/write-descriptor.mjs` (emits canonical YAML,
+  measures real bytes/dimensions) and `scripts/validate-descriptors.mjs` (gate:
+  fails on missing fields, ghost file refs, or orphan assets).
+- Sprite frame-grid standard: animation-ready layout rules (uniform power-of-two
+  cell, zero gutter, row-major order, fixed columns, shared anchor) plus an atlas
+  schema carrying the playback contract.
+- Chroma-key background convention for transparent assets: generate on a
+  chroma-green (`#00B140`) plate and key it out; forbid the plate color in the
+  asset; magenta fallback for green subjects.
+- HARD RULE #1: assets must be rendered by an image model (API/ChatGPT), never
+  hand-drawn in code/canvas/SVG.
 - Quality tooling: `scripts/asset-qa.mjs` automated quality gate (naming,
   dimensions, alpha, palette budget) and `evals/activation.md` activation
   regression checklist.

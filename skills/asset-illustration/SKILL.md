@@ -35,5 +35,6 @@ Applies only when the illustration ships with a transparent/cut-out background (
 - [ ] Same palette + line + shading as the rest of the set.
 - [ ] No embedded text (text belongs in code/HTML, not the raster).
 - [ ] Composition leaves room for headline overlay if it's a hero.
+- [ ] Sidecar `docs/assets/<slug>.yaml` written, with a `composition` note (where the negative space is) so it's placed without opening the image.
 
 Run through the `asset-canon` pipeline.

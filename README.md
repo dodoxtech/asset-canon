@@ -56,7 +56,16 @@ node scripts/codex-imagegen.mjs --prompt "minimal line icon of a cart" \
 # optimize a folder into a size/format ladder (needs `npm install` for sharp)
 node scripts/optimize-assets.mjs --in assets/generated/icons \
   --sizes 512,256,128 --formats webp,png --strip
+
+# write a sidecar descriptor so other agents can place the asset without opening it
+node scripts/write-descriptor.mjs --spec cart.spec.json   # -> docs/assets/cart.yaml
+
+# gate: every asset must have a valid descriptor (CI-friendly, exit 1 on failure)
+node scripts/validate-descriptors.mjs --in assets/generated/icons
 ```
+
+Every generated asset ships with a YAML descriptor in [`docs/assets/`](docs/assets/)
+(content, style, intended placement, file variants) — see that folder's README.
 
 ### Backend selection
 - **Codex CLI** (default): drives the `codex` executor to generate and save the file.
@@ -83,8 +92,12 @@ asset-canon/
 │   ├── asset-texture/SKILL.md
 │   └── asset-social/SKILL.md
 ├── scripts/
-│   ├── codex-imagegen.mjs   # generation executor
-│   └── optimize-assets.mjs  # post-process
+│   ├── codex-imagegen.mjs      # generation executor
+│   ├── optimize-assets.mjs     # post-process
+│   ├── asset-qa.mjs            # image quality gate
+│   ├── write-descriptor.mjs   # emit docs/assets/<id>.yaml descriptor
+│   └── validate-descriptors.mjs # descriptor gate (every asset described)
+├── docs/assets/             # one YAML descriptor per asset
 ├── assets/                  # generated output + brief templates
 ├── examples/                # sample outputs
 ├── skill.sh                 # local install-name -> path registry
@@ -92,6 +105,10 @@ asset-canon/
 ├── CHANGELOG.md
 └── LICENSE
 ```
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=dodoxtech/asset-canon&type=Date)](https://star-history.com/#dodoxtech/asset-canon&Date)
 
 ## License
 

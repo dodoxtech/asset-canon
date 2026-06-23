@@ -24,7 +24,8 @@ BRIEF  ->  PLAN  ->  GENERATE (codex-imagegen)  ->  POST-PROCESS  ->  WRITE  -> 
 5. **Transparent where it matters.** Icons, sprites, illustrations with no background → alpha PNG. Verify the background is actually transparent, not white.
 6. **Deterministic names.** Files use `<slug>-<variant>-<WxH>.<ext>` (e.g. `cart-icon-line-512x512.png`). No spaces, no timestamps, lowercase kebab-case.
 7. **No AI slop.** No purple/blue glow defaults, no meaningless floating blobs, no fake-3D bevels unless the brief asks. Match the brand, not the model's defaults.
-8. **Key out a chroma plate — don't trust "transparent".** For any asset that needs a transparent background (icon, sprite, illustration), generate it on a solid **chroma-green** plate (`#00B140`) and key that green to alpha in post. Direct "transparent" output leaves white halos and ragged alpha. **The asset's own colors must avoid the green family (~`#00A040`–`#40FF80`)** — if any part of the subject uses that green, keying will punch holes in the asset. If the subject is naturally green (a leaf, a frog, money), switch to a **chroma-magenta** plate (`#FF00FF`) and forbid magenta instead. Full-bleed assets (texture, social) keep their background and skip this.
+8. **Every asset ships with a sidecar descriptor.** Alongside the image files, write a machine-readable **YAML** descriptor to `docs/assets/<slug>.yaml` that describes the asset's content, style, and intended placement — so another agent can place it correctly **without ever opening the image**. An asset is not "done" until its descriptor exists. (See **ASSET DESCRIPTOR** below.)
+9. **Key out a chroma plate — don't trust "transparent".** For any asset that needs a transparent background (icon, sprite, illustration), generate it on a solid **chroma-green** plate (`#00B140`) and key that green to alpha in post. Direct "transparent" output leaves white halos and ragged alpha. **The asset's own colors must avoid the green family (~`#00A040`–`#40FF80`)** — if any part of the subject uses that green, keying will punch holes in the asset. If the subject is naturally green (a leaf, a frog, money), switch to a **chroma-magenta** plate (`#FF00FF`) and forbid magenta instead. Full-bleed assets (texture, social) keep their background and skip this.
 
 ---
 
@@ -110,7 +111,7 @@ node scripts/optimize-assets.mjs --in assets/generated/icons --sizes 512,256,128
 
 ## 5. WRITE + REPORT
 
-Write files to the output dir using the deterministic naming scheme. Then report a table:
+Write files to the output dir using the deterministic naming scheme. **For every asset, also write its sidecar descriptor to `docs/assets/<slug>.yaml`** (see ASSET DESCRIPTOR below) — the image and its descriptor land together, in the same step. Then report a table:
 
 ```
 | file                              | size    | format | bytes |
@@ -119,7 +120,84 @@ Write files to the output dir using the deterministic naming scheme. Then report
 | cart-icon-line-512x512.webp       | 512x512 | webp   | 2.3KB |
 ```
 
-End with the import snippet for the user's stack (e.g. `import cart from "@/assets/generated/icons/cart-icon-line-512x512.webp"`).
+Note the descriptor path in the report (`docs/assets/cart.yaml`), then end with the import snippet for the user's stack (e.g. `import cart from "@/assets/generated/icons/cart-icon-line-512x512.webp"`).
+
+---
+
+## ASSET DESCRIPTOR (sidecar metadata)
+
+Goal: an agent that has **never seen the pixels** can read the descriptor and know what the asset depicts, how it looks, and where it belongs. One YAML file per logical asset at `docs/assets/<slug>.yaml`; all size/format variants are listed inside it.
+
+Don't hand-write the YAML — author the descriptive content as a small JSON spec and let the writer fill in the measurable facts (real bytes, pixel dimensions, format, date) and emit canonical YAML, then gate it:
+
+```bash
+# write docs/assets/<id>.yaml from a spec (real dims/bytes measured from disk)
+node scripts/write-descriptor.mjs --spec cart.spec.json
+
+# gate: fail if any descriptor is invalid or any asset has no descriptor
+node scripts/validate-descriptors.mjs --in assets/generated/icons
+```
+
+```yaml
+# docs/assets/cart.yaml
+id: cart
+type: icon                      # icon | illustration | sprite | texture | social
+subject: shopping cart          # the concrete thing depicted
+description: >                  # plain-language content, enough to place it blind
+  A minimal line-art shopping cart facing right, single charcoal stroke,
+  no fill, no background. Reads as "add to cart / checkout".
+keywords: [cart, ecommerce, checkout, basket, buy]
+placement:                      # where another agent should USE this
+  intended_use: primary "add to cart" button and cart nav link
+  context: ecommerce header, product cards
+  do: [use at 24–32px in UI, pair with accent on hover]
+  dont: [do not stretch, do not place on busy photo backgrounds]
+style:
+  art_style: flat line
+  stroke: 2px @ 24px grid
+  shading: none
+palette: ["#1A1A1A"]            # the asset's actual colors (not the chroma plate)
+background: transparent         # transparent | full-bleed | chroma-keyed
+dimensions:
+  master: 1024x1024
+  aspect: "1:1"
+safe_area: full                 # or e.g. "inner 90%" for social
+accessibility:
+  alt_text: "Shopping cart icon"
+files:                          # every variant on disk, by path
+  - path: assets/generated/icons/cart-icon-line-512x512.webp
+    size: 512x512
+    format: webp
+    bytes: 2360
+  - path: assets/generated/icons/cart-icon-line-512x512.png
+    size: 512x512
+    format: png
+    bytes: 4180
+source:                         # provenance — never a code-drawn asset
+  model: codex-imagegen (openai images)
+  prompt: "Minimal flat line icon of a shopping cart, 2px stroke, …"
+  generated: 2026-06-23
+```
+
+**Type-specific blocks to add when relevant:**
+
+- **sprite** — add an `animation` block so the motion is reconstructable without opening the sheet:
+  ```yaml
+  animation:
+    sheet: assets/generated/sprites/hero_run-512x128.png
+    cell: { w: 64, h: 64 }
+    columns: 8
+    count: 8
+    fps: 12
+    loop: true
+    anchor: [0.5, 1.0]
+    clips: { run: [0, 7] }
+  ```
+- **social** — add `platform: og` / `safe_area: inner 90%` / `text_overlay: "added in code, not baked"`.
+- **texture** — add `tileable: true`, `tile_size: 1024x1024`, `tonality: low-contrast`.
+- **illustration** — add `composition: "negative space top-right for headline"`.
+
+Rules: keep `description`/`placement` truthful to what was actually generated; list **only files that exist**; the `palette` is the asset's own colors, never the chroma plate. If you batch N assets, write N descriptor files (one per slug).
 
 ---
 

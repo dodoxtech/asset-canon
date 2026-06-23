@@ -37,5 +37,6 @@ Generate on the chroma plate, then key `#00B140` to alpha in post (see **CHROMA-
 - [ ] All icons share stroke + radius + optical size.
 - [ ] App icons that forbid alpha are flattened on the brand bg.
 - [ ] Favicon ladder + apple-touch + maskable generated.
+- [ ] Sidecar `docs/assets/<slug>.yaml` written (subject, placement/intended_use, alt_text, files).
 
 Follow the `asset-canon` pipeline for generate → optimize → write → report.
