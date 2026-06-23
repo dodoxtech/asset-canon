@@ -45,6 +45,32 @@ This installs both the **skills** and the **slash commands**.
 | `/asset-variants` | Produce color / size / state variants of an existing asset |
 | `/asset-optimize` | Resize ladder, webp/png/ico export, sprite packing, metadata strip |
 
+## Requirements
+
+- **Node.js ≥ 18** — runs every script.
+- **An image model** — the [generate step](#pipeline-scripts) calls Codex CLI or the OpenAI image API (`OPENAI_API_KEY`). Assets are always rendered by a model, never drawn in code.
+- **[`sharp`](https://sharp.pixelplumbing.com/)** — *optional*, for the pixel-processing steps. It's declared as an `optionalDependency`, so installing the skill does **not** pull it in automatically.
+
+### Do I need `sharp`?
+
+`sharp` does all the work that touches pixels: resizing, format export, composing a sprite sheet, and measuring real dimensions. Generation itself does not use it.
+
+| Task | Needs `sharp`? |
+|---|---|
+| Generate images (Codex / OpenAI) | ❌ no |
+| Write a descriptor / sprite atlas **data** | ❌ no (falls back to WxH in the filename) |
+| Resize ladder + webp/png/ico export (`optimize-assets`) | ✅ yes |
+| Compose the actual sprite **sheet PNG** (`pack-sprite`) | ✅ yes |
+| Full image QA — alpha, color budget (`asset-qa`) | ✅ yes |
+
+Every script **degrades gracefully** without `sharp` (prints a plan or emits data-only output) instead of crashing. To enable the pixel steps, install it in the directory the scripts run from:
+
+```bash
+npm install        # pulls sharp (downloads a native libvips binary for your OS)
+```
+
+End users who only generate images and emit atlas/descriptor data can skip it.
+
 ## Pipeline scripts
 
 ```bash
