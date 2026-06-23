@@ -22,14 +22,16 @@
     "asset-canon-optimize": "scripts/optimize-assets.mjs",
     "asset-canon-qa": "scripts/asset-qa.mjs",
     "asset-canon-describe": "scripts/write-descriptor.mjs",
-    "asset-canon-validate-descriptors": "scripts/validate-descriptors.mjs"
+    "asset-canon-validate-descriptors": "scripts/validate-descriptors.mjs",
+    "asset-canon-pack-sprite": "scripts/pack-sprite.mjs"
   },
   "scripts": {
     "gen": "node scripts/codex-imagegen.mjs",
     "optimize": "node scripts/optimize-assets.mjs",
     "qa": "node scripts/asset-qa.mjs",
     "describe": "node scripts/write-descriptor.mjs",
-    "validate-descriptors": "node scripts/validate-descriptors.mjs"
+    "validate-descriptors": "node scripts/validate-descriptors.mjs",
+    "pack-sprite": "node scripts/pack-sprite.mjs"
   },
   "optionalDependencies": {
     "sharp": "^0.33.0"

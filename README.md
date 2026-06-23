@@ -57,6 +57,10 @@ node scripts/codex-imagegen.mjs --prompt "minimal line icon of a cart" \
 node scripts/optimize-assets.mjs --in assets/generated/icons \
   --sizes 512,256,128 --formats webp,png --strip
 
+# pack animation frames into a sheet + atlas (json / xml / texturepacker)
+node scripts/pack-sprite.mjs --in assets/generated/sprites/hero_run \
+  --name hero_run --columns 8 --fps 12 --formats json,xml,texturepacker
+
 # write a sidecar descriptor so other agents can place the asset without opening it
 node scripts/write-descriptor.mjs --spec cart.spec.json   # -> docs/assets/cart.yaml
 
@@ -95,6 +99,7 @@ asset-canon/
 │   ├── codex-imagegen.mjs      # generation executor
 │   ├── optimize-assets.mjs     # post-process
 │   ├── asset-qa.mjs            # image quality gate
+│   ├── pack-sprite.mjs        # frames -> sheet + atlas (json/xml/texturepacker)
 │   ├── write-descriptor.mjs   # emit docs/assets/<id>.yaml descriptor
 │   └── validate-descriptors.mjs # descriptor gate (every asset described)
 ├── docs/assets/             # one YAML descriptor per asset

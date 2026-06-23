@@ -10,6 +10,9 @@
 - Sprite frame-grid standard: animation-ready layout rules (uniform power-of-two
   cell, zero gutter, row-major order, fixed columns, shared anchor) plus an atlas
   schema carrying the playback contract.
+- Sprite packer `scripts/pack-sprite.mjs`: lays frames out row-major, composes the
+  transparent sheet, and emits the atlas in selectable formats — `json` (native),
+  `xml` (TexturePacker/Starling), `texturepacker` (JSON-Hash for Phaser/PixiJS/Godot).
 - Chroma-key background convention for transparent assets: generate on a
   chroma-green (`#00B140`) plate and key it out; forbid the plate color in the
   asset; magenta fallback for green subjects.

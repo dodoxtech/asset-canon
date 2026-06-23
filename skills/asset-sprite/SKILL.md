@@ -1,6 +1,6 @@
 ---
 name: asset-sprite
-description: Generate game sprites and spritesheets with Codex — characters, items, tiles, props — at a fixed canvas with a consistent pixel or vector style, alpha background, and frame-grid packing plus a JSON atlas for animation. Use for game art, icon-like game items, tilesets, and animation frames.
+description: Generate game sprites and spritesheets with Codex — characters, items, tiles, props — at a fixed canvas with a consistent pixel or vector style, alpha background, and frame-grid packing plus an atlas (JSON / XML / TexturePacker JSON-Hash) for animation. Use for game art, icon-like game items, tilesets, and animation frames.
 ---
 
 # ASSET-SPRITE
@@ -51,7 +51,15 @@ w = cell.w ,  h = cell.h
 
 ## SPRITESHEET PACKING
 
-Pack frames in name order into the grid above, then emit an atlas that carries the playback contract (cell, columns, count, fps, loop, anchor) — not just per-frame boxes:
+Run the packer — it lays frames out row-major on the grid above, composes the transparent sheet, and emits the atlas in whichever format(s) the target engine wants:
+
+```bash
+# json = native schema; xml = TexturePacker/Starling; texturepacker = JSON-Hash (Phaser/PixiJS/Godot)
+node scripts/pack-sprite.mjs --in assets/generated/sprites/hero_run \
+  --name hero_run --columns 8 --fps 12 --formats json,xml,texturepacker
+```
+
+It packs frames in name order and emits an atlas that carries the playback contract (cell, columns, count, fps, loop, anchor) — not just per-frame boxes:
 ```json
 {
   "meta": {
@@ -71,7 +79,16 @@ Pack frames in name order into the grid above, then emit an atlas that carries t
   }
 }
 ```
-With `meta` alone a script reconstructs every frame rect via the reader math; `frames` is a convenience/verification map. Multiple actions → either one row per action (with a `clips` map of `{ "run": [0,7], "jump": [8,11] }`) or one sheet+atlas per action.
+With `meta` alone a script reconstructs every frame rect via the reader math; `frames` is a convenience/verification map. Multiple actions → either one row per action (pass `--clips run:0-7,jump:8-11`) or one sheet+atlas per action.
+
+**Atlas format options** (`--formats`, pick what the engine reads):
+| Format | File | Reads natively |
+|---|---|---|
+| `json` | `<name>.json` | asset-canon native schema (full playback contract) |
+| `xml` | `<name>.xml` | TexturePacker/Starling `<TextureAtlas>` — Cocos2d, Starling |
+| `texturepacker` | `<name>.tp.json` | TexturePacker JSON-Hash — Phaser, PixiJS, many Godot/Unity importers |
+
+All formats carry the same `x,y,w,h` per frame, so the sheet cuts identically whichever you choose.
 
 ## CHECKS
 - [ ] Chroma plate fully keyed to alpha; sprite has no interior holes from keying.
@@ -80,6 +97,7 @@ With `meta` alone a script reconstructs every frame rect via the reader math; `f
 - [ ] `sheet.w == columns·cell.w` and `sheet.h == ceil(count/columns)·cell.h` — reader math resolves.
 - [ ] Every frame identical canvas + shared anchor pixel (no subject drift across frames).
 - [ ] Frames zero-padded and named in playback order; atlas `meta` carries cell/columns/count/fps/loop/anchor.
+- [ ] Atlas emitted in the format the target engine reads (`--formats json,xml,texturepacker`).
 - [ ] Palette stays within the locked index set.
 - [ ] Tiles pass the seamless-edge check (delegate to asset-texture check).
 - [ ] Sidecar `docs/assets/<slug>.yaml` written, including the `animation` block (cell/columns/count/fps/loop/anchor/clips) so motion is reconstructable without opening the sheet.
