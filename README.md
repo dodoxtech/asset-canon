@@ -74,9 +74,14 @@ End users who only generate images and emit atlas/descriptor data can skip it.
 ## Pipeline scripts
 
 ```bash
+# define the shared style once, validate it, then every asset inherits it
+node scripts/validate-style-profile.mjs --in docs/style-profile.yaml
+
 # generate one asset (Codex CLI backend, or OpenAI image API if OPENAI_API_KEY is set)
+# --style-profile appends the shared style suffix + anti-slop guard + seed
 node scripts/codex-imagegen.mjs --prompt "minimal line icon of a cart" \
   --size 1024x1024 --background transparent \
+  --style-profile docs/style-profile.yaml \
   --out assets/generated/icons/cart-icon-line-1024x1024.png
 
 # optimize a folder into a size/format ladder (needs `npm install` for sharp)
@@ -127,8 +132,11 @@ asset-canon/
 │   ├── asset-qa.mjs            # image quality gate
 │   ├── pack-sprite.mjs        # frames -> sheet + atlas (json/xml/texturepacker)
 │   ├── write-descriptor.mjs   # emit docs/assets/<id>.yaml descriptor
-│   └── validate-descriptors.mjs # descriptor gate (every asset described)
-├── docs/assets/             # one YAML descriptor per asset
+│   ├── validate-descriptors.mjs # descriptor gate (every asset described)
+│   └── validate-style-profile.mjs # gate the shared style profile
+├── docs/
+│   ├── style-profile.example.yaml # shared style context (copy to style-profile.yaml)
+│   └── assets/              # one YAML descriptor per asset
 ├── assets/                  # generated output + brief templates
 ├── examples/                # sample outputs
 ├── skill.sh                 # local install-name -> path registry

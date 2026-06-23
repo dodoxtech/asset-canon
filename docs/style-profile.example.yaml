@@ -1,0 +1,39 @@
+# docs/style-profile.example.yaml — copy to docs/style-profile.yaml and edit.
+#
+# The SHARED style context for a whole project. Define it once; every generation
+# (and every other agent) reads it so assets stay visually consistent — the
+# design-tokens-as-style-brief pattern (Style Dictionary / Penpot), applied to
+# image generation. Pass it with:  codex-imagegen.mjs --style-profile docs/style-profile.yaml
+#
+# What the generator injects automatically: prompt_suffix + "Avoid: <negative>",
+# and seed (only on backends that support it — gpt-image-1 has no seed param).
+
+id: acme-v1                         # required — name/version of this style
+palette:                            # required — the brand colors (hex)
+  - "#0B0B0F"
+  - "#F5F5F5"
+  - "#FF5C39"
+
+line:
+  weight: "2px @ 24px grid"
+  style: uniform                    # none | uniform | tapered
+shading: flat                       # flat | two-tone | soft-gradient
+lighting: top-left
+camera: front-flat                  # front-flat | side | iso
+proportions:
+  head_body: "1:6"
+
+# Appended to every prompt — the positive style anchor.
+prompt_suffix: "flat vector, cohesive Acme brand, crisp edges"
+
+# Appended as "Avoid: …" — the anti-slop guard.
+negative:
+  - "purple/blue AI glow"
+  - "fake 3D bevel"
+  - "meaningless floating blobs"
+  - "gradient mesh"
+
+# Locked seed for reproducibility. Honored only by backends that support it
+# (Codex executor); gpt-image-1 currently has no seed parameter, so it is
+# recorded here for intent/provenance but not sent to that API.
+seed: 73122

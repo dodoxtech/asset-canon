@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Shared style profile for cross-asset consistency: `docs/style-profile.yaml`
+  (copy from `docs/style-profile.example.yaml`) is a single style context every
+  generation reads — the design-tokens-as-style-brief pattern applied to image
+  gen. `codex-imagegen.mjs --style-profile` appends `prompt_suffix` + an
+  `Avoid: <negative>` anti-slop guard and locks `seed` on backends that support
+  it (gpt-image-1 has no seed param). New `scripts/validate-style-profile.mjs`
+  gates the profile (required fields, hex palette, numeric seed). Text/structured
+  conditioning only; reference-image and LoRA backends are a future step.
 - Sidecar descriptors: every generated asset now ships with a YAML descriptor in
   `docs/assets/<id>.yaml` (HARD RULE #8) so another agent can place it without
   opening the image. New `scripts/write-descriptor.mjs` (emits canonical YAML,

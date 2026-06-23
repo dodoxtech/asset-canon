@@ -81,6 +81,14 @@ Specialist: asset-icon
 
 Route to the matching specialist SKILL.md (`asset-icon`, `asset-illustration`, `asset-sprite`, `asset-texture`, `asset-social`) and follow its art-direction rules for the prompt.
 
+**Persist the style as a shared profile.** Don't keep palette/style only in this transient plan — write it once to `docs/style-profile.yaml` (copy `docs/style-profile.example.yaml`) so every later generation and every other agent inherits the same context. Validate it before generating:
+
+```bash
+node scripts/validate-style-profile.mjs --in docs/style-profile.yaml
+```
+
+See **STYLE PROFILE** below.
+
 ## 3. GENERATE — run the pipeline via Codex
 
 Build one structured prompt per asset and invoke the generation wrapper:
@@ -90,10 +98,11 @@ node scripts/codex-imagegen.mjs \
   --prompt "<art-directed prompt from specialist>, centered on a solid chroma-green #00B140 background, no green anywhere in the subject" \
   --size 1024x1024 \
   --background opaque \
+  --style-profile docs/style-profile.yaml \
   --out assets/generated/icons/cart-icon-line-1024x1024.png
 ```
 
-The wrapper (`scripts/codex-imagegen.mjs`) calls the image model through the Codex CLI / OpenAI image API. For a batch, loop over the asset list. Generate at the **largest** required size once; downscale in post-process. For transparent assets, bake the chroma plate into the prompt (see **CHROMA-KEY BACKGROUND** above) and key the green to alpha in post-process — don't request `--background transparent` directly.
+The wrapper (`scripts/codex-imagegen.mjs`) calls the image model through the Codex CLI / OpenAI image API. **Pass `--style-profile docs/style-profile.yaml` on every call** so the shared `prompt_suffix` + anti-slop `negative` are appended and the `seed` is locked — this is what keeps a batch consistent. For a batch, loop over the asset list. Generate at the **largest** required size once; downscale in post-process. For transparent assets, bake the chroma plate into the prompt (see **CHROMA-KEY BACKGROUND** above) and key the green to alpha in post-process — don't request `--background transparent` directly.
 
 If only one image can render at a time, generate them **sequentially in the same run** and announce progress: `Asset 1 of 3: cart`, `Asset 2 of 3: heart`, …
 
@@ -198,6 +207,28 @@ source:                         # provenance — never a code-drawn asset
 - **illustration** — add `composition: "negative space top-right for headline"`.
 
 Rules: keep `description`/`placement` truthful to what was actually generated; list **only files that exist**; the `palette` is the asset's own colors, never the chroma plate. If you batch N assets, write N descriptor files (one per slug).
+
+---
+
+## STYLE PROFILE (shared style context)
+
+A descriptor describes **one output**; the style profile prescribes the **shared input style** that keeps every asset consistent. It is the design-tokens-as-style-brief pattern (Style Dictionary / Penpot) applied to image generation: define the look once in `docs/style-profile.yaml`, and every generation — now or months later, by you or another agent — inherits it.
+
+Copy `docs/style-profile.example.yaml`, fill it in, validate, then pass it to every generate call:
+
+```bash
+node scripts/validate-style-profile.mjs --in docs/style-profile.yaml          # gate
+node scripts/codex-imagegen.mjs --prompt "<…>" --style-profile docs/style-profile.yaml --out <…>
+```
+
+The generator automatically:
+- appends `prompt_suffix` (the positive style anchor) to the prompt,
+- appends `Avoid: <negative…>` (the anti-slop guard),
+- locks `seed` on backends that support it (the Codex executor; gpt-image-1 has no seed parameter, so it's skipped there).
+
+Required fields: `id`, `palette` (hex), `prompt_suffix`. Recommended: `line`, `shading`, `negative`, `seed`. One profile per project (or per brand/sub-theme); commit it so the style is reproducible.
+
+> **Scope note:** this is text/structured conditioning only. Stronger visual locking — passing reference images to gpt-image-1, or a local SD + LoRA backend — is a deliberate future step, not part of this profile.
 
 ---
 

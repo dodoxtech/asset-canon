@@ -23,7 +23,8 @@
     "asset-canon-qa": "scripts/asset-qa.mjs",
     "asset-canon-describe": "scripts/write-descriptor.mjs",
     "asset-canon-validate-descriptors": "scripts/validate-descriptors.mjs",
-    "asset-canon-pack-sprite": "scripts/pack-sprite.mjs"
+    "asset-canon-pack-sprite": "scripts/pack-sprite.mjs",
+    "asset-canon-validate-style": "scripts/validate-style-profile.mjs"
   },
   "scripts": {
     "gen": "node scripts/codex-imagegen.mjs",
@@ -31,7 +32,8 @@
     "qa": "node scripts/asset-qa.mjs",
     "describe": "node scripts/write-descriptor.mjs",
     "validate-descriptors": "node scripts/validate-descriptors.mjs",
-    "pack-sprite": "node scripts/pack-sprite.mjs"
+    "pack-sprite": "node scripts/pack-sprite.mjs",
+    "validate-style": "node scripts/validate-style-profile.mjs"
   },
   "optionalDependencies": {
     "sharp": "^0.33.0"
