@@ -30,4 +30,10 @@ Social images live at **exact platform sizes** with hard safe areas. Get the dim
 2. Overlay headline + logo via the project's SVG/HTML template (deterministic, crisp).
 3. Export PNG at exact size + a compressed webp.
 
+## CHECKS BEFORE WRITING
+- [ ] Exact platform dimensions (e.g. 1200×630 for OG); verify with `asset-qa`.
+- [ ] Key content inside the safe area (inner 90%).
+- [ ] Headline text overlaid via SVG/HTML, not baked/warped into the raster.
+- [ ] Single brand palette, one accent — consistent with the site.
+
 Run through the `asset-canon` pipeline.

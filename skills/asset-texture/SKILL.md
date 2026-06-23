@@ -28,4 +28,10 @@ Tile the image 2×2 and inspect the center cross for discontinuity. If seams app
 - regenerate with a stronger "edges wrap continuously" constraint.
 Only ship after a clean 2×2 tile.
 
+## CHECKS BEFORE WRITING
+- [ ] Tiles seamlessly (clean 2×2 wrap, no visible seam).
+- [ ] Low contrast / no focal point so foreground content stays readable.
+- [ ] Within the 1–3 color budget; verify with `asset-qa --max-colors 3`.
+- [ ] Exported at the declared tile size, no upscale.
+
 Run through the `asset-canon` pipeline.
