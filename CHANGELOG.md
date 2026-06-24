@@ -9,8 +9,8 @@
   never required, never the only path. A user who only installed the skill is
   never told to download or run a bundled script.
 - Shared style profile for cross-asset consistency: `docs/style-profile.yaml`
-  (copy from `docs/style-profile.example.yaml`) is a single style context every
-  generation reads — the design-tokens-as-style-brief pattern applied to image
+  (shape documented in the skill's STYLE PROFILE section) is a single style
+  context every generation reads — the design-tokens-as-style-brief pattern applied to image
   gen. `codex-imagegen.mjs --style-profile` appends `prompt_suffix` + an
   `Avoid: <negative>` anti-slop guard and locks `seed` on backends that support
   it (gpt-image-1 has no seed param). New `scripts/validate-style-profile.mjs`

@@ -29,7 +29,7 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv.slice(2));
 const file = resolve(args.in || "docs/style-profile.yaml");
 if (!existsSync(file)) {
-  console.error(`No style profile at ${file}. Copy docs/style-profile.example.yaml to start.`);
+  console.error(`No style profile at ${file}. See the STYLE PROFILE section of the asset-canon skill for the shape to write.`);
   process.exit(1);
 }
 

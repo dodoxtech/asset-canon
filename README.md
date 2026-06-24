@@ -16,6 +16,8 @@ npx skills add github:dodoxtech/asset-canon
 npx skills add github:dodoxtech/asset-canon/skills/asset-icon
 ```
 
+Each specialist is **self-contained** — installed alone it still detects your framework's output folder, keys backgrounds, and runs the final verify gate. Adding `asset-canon` on top gives you one-prompt **routing across asset types** and a **shared style profile** that keeps a whole batch consistent.
+
 ### Via Claude Code plugin marketplace
 
 ```bash
@@ -24,6 +26,52 @@ npx skills add github:dodoxtech/asset-canon/skills/asset-icon
 ```
 
 This installs both the **skills** and the **slash commands**.
+
+## How to use
+
+You don't run scripts. After installing, you just **ask your coding agent in plain language** — the skill does the rest.
+
+```text
+You: "Generate a flat line icon set — cart, search, user — for my store."
+```
+
+The agent recognizes the request, loads the `asset-canon` skill, and runs a fixed pipeline:
+
+```
+BRIEF  →  PLAN  →  GENERATE  →  OPTIMIZE  →  WRITE  →  VERIFY  →  REPORT
+```
+
+| Step | What the agent does |
+|---|---|
+| **BRIEF** | Reads your request (or you run `/asset-new` to scaffold one). |
+| **PLAN** | Picks the right specialist (icon / illustration / sprite / texture / social), locks **one** palette + style (written to `docs/style-profile.yaml`), and **detects your framework** to choose where assets go (Next.js → `public/assets/`, fallback → `assets/`). |
+| **GENERATE** | Calls an **image model** (Codex CLI or OpenAI `gpt-image-1`) to render the pixels. Never draws art in code. Renders on a chroma-green plate when a transparent background is needed. |
+| **OPTIMIZE** | Keys out the background to real alpha (tolerance-based, then re-checked for residue), downscales to a size ladder, exports webp/png/ico, packs sprite sheets, strips metadata. |
+| **WRITE** | Saves the image files in your framework's static folder (e.g. `public/assets/icons/`) with deterministic names (`cart-icon-line-512x512.png`), a descriptor in `docs/assets/`, and a per-asset style snapshot in `docs/assets/styles/`. |
+| **VERIFY** | Re-checks every output file against the standard — naming, real dimensions, fully-cut background (no plate residue), in-budget palette, sidecars present — and stamps `✓ PASS` / `✗ FAIL` per asset. Fails get fixed before reporting. |
+| **REPORT** | Tells you exactly which files it created, where, and the pass verdict. |
+
+### Minimal flow
+
+1. **Install** (above).
+2. **Ask** the agent for assets — or run `/asset-gen` with a brief.
+3. The agent generates, optimizes, and **writes real files to disk** in your project.
+4. Done. Re-run anytime; the saved `style-profile.yaml` keeps new assets consistent with old ones.
+
+> You need an **image model** reachable: either the Codex CLI, or set `OPENAI_API_KEY`. Without one, the skill stops and tells you — it will never fake an asset by drawing it in code. See [Requirements](#requirements).
+
+## Files the skill reads & writes
+
+These appear **in your own project** as you generate. You rarely edit them by hand — the skill manages them — but here's what each is for:
+
+| File / folder | Role | Who writes it |
+|---|---|---|
+| `docs/style-profile.yaml` | **The shared look (project source).** One palette, line weight, shading, `prompt_suffix`, anti-slop `negative` list, and `seed`. Every generation reads it so a whole project stays visually consistent. Written once, reused forever. | Skill (on first PLAN) — commit it |
+| `<static-dir>/assets/<type>/<slug>-<variant>-<WxH>.<ext>` | **The actual asset files**, written to your framework's static folder — `public/assets/` (Next.js, Astro, Vite, CRA…), `static/assets/` (SvelteKit, Hugo…), `src/assets/` (Angular), or `assets/` if no framework is detected. Deterministic, lowercase-kebab names; transparent PNG where it matters, plus the webp/png/ico ladder. | Skill (GENERATE + OPTIMIZE) |
+| `docs/assets/<slug>.yaml` | **Sidecar descriptor.** Machine-readable record of each asset's content, style, and intended placement — so another agent can place the asset correctly **without opening the image**. | Skill (WRITE) |
+| `docs/assets/styles/style-profile-<slug>.yaml` | **Per-asset style snapshot.** The *resolved* style recipe that produced this one asset (shared profile + any per-asset overrides). Point a future generation at it to reproduce or make a faithful variant. | Skill (WRITE) |
+
+> An asset isn't "done" until its image **and** both sidecars exist and it passes the final acceptance gate (naming, dimensions, clean background, in-budget palette).
 
 ## Skills
 
@@ -137,8 +185,9 @@ asset-canon/
 │   ├── validate-descriptors.mjs # descriptor gate (every asset described)
 │   └── validate-style-profile.mjs # gate the shared style profile
 ├── docs/
-│   ├── style-profile.example.yaml # shared style context (copy to style-profile.yaml)
+│   ├── style-profile.yaml   # shared style context (shape documented in the skill)
 │   └── assets/              # one YAML descriptor per asset
+│       └── styles/          # one resolved style snapshot per asset (style-profile-<slug>.yaml)
 ├── assets/                  # generated output + brief templates
 ├── examples/                # sample outputs
 ├── skill.sh                 # local install-name -> path registry

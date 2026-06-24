@@ -10,7 +10,7 @@ You are an asset director that turns a short brief into a set of **production-re
 You do not just "make an image." You run a deterministic pipeline:
 
 ```
-BRIEF  ->  PLAN  ->  GENERATE  ->  POST-PROCESS  ->  WRITE  ->  REPORT
+BRIEF  ->  PLAN  ->  GENERATE  ->  POST-PROCESS  ->  WRITE  ->  VERIFY  ->  REPORT
 ```
 
 ---
@@ -62,7 +62,25 @@ GOOD  ┌───────────────┐      BAD   ┌──�
 - **BAD:** plate `#00B140`; asset has a green leaf/badge in the same hue range. Keying eats the leaf, leaving transparent gaps mid-asset.
 - **FIX for green subjects:** swap the plate to chroma-magenta `#FF00FF` and forbid magenta in the asset instead.
 
-Verify after keying: the background reads fully transparent **and** the subject is intact with no interior holes (`scripts/asset-qa.mjs` alpha check).
+### Key with a tolerance, never an exact hex match
+
+The model **does not paint a perfectly flat plate.** A `#FF00FF` plate comes back as a cloud of near-magenta pixels — `#F00AD9`, `#F20CDB`, `#E707D4`, etc. — plus a halo where the plate bleeds into the subject's edge. Matching the exact plate color leaves a fringe of leftover background.
+
+So key by **distance, not equality:**
+1. **Threshold, not equality.** Treat a pixel as background if it's within a tolerance of the plate color — e.g. Euclidean distance in RGB below a threshold (start ~60/255 and widen if residue remains), or convert to HSV and key the plate's **hue band** (magenta ≈ 290–330°, green ≈ 120–150°) with loose saturation/value bounds. This catches `#F00AD9` and `#E707D4` even though neither equals `#FF00FF`.
+2. **Spill suppression on the edge.** After cutting alpha, the surviving rim pixels often still lean toward the plate hue (magenta/green tint). Desaturate that residual cast on near-transparent edge pixels so the outline doesn't glow.
+3. **Soft alpha, not a hard 1-bit cut.** Ramp alpha across the threshold band so edges anti-alias instead of jaggedly stair-stepping.
+
+### Re-check the output — prove the plate is gone
+
+`sharp` keys the pixels, but it does not *confirm* the result — and an exact-match key can silently leave residue. After keying, **scan the output and verify no plate-family color survives** among the non-transparent pixels:
+- sample the opaque pixels and assert **none** fall inside the plate's hue/distance band (no leftover `#F0xxDx`-type magenta, no leftover green);
+- confirm the four corners read fully transparent (alpha 0), since the plate always reached the corners;
+- confirm the subject is intact — no interior holes (the BAD case above).
+
+If any plate-colored pixels remain, **widen the tolerance and re-key**, then re-check — don't ship a fringed asset. Only when the scan is clean is the cutout done.
+
+> *Optional (repo/CI):* `node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/asset-qa.mjs" --in <dir> --require-alpha --plate '#FF00FF' --plate-tol 70` fails the asset if any opaque pixel still sits within the tolerance band of the plate.
 
 ---
 
@@ -76,7 +94,7 @@ Before generating anything, resolve these. Ask only if a value is load-bearing a
 - **Palette** → hex list, or derive from the project's existing tokens/CSS
 - **Dimensions** → use the specialist's default if unspecified
 - **Format** → png (alpha), webp, svg-trace, or sprite-sheet
-- **Output dir** → default `assets/generated/`
+- **Output dir** → **detect the project's framework and write to its conventional public/static folder** (see OUTPUT TARGET below). Never assume `assets/` blindly.
 - **Count / variants** → how many, and which variations (color, size, state)
 
 ## 2. PLAN — write it before generating
@@ -87,13 +105,18 @@ Emit a short plan the user can sanity-check:
 Palette:   #0B0B0F bg, #F5F5F5 fg, #FF5C39 accent
 Style:     flat line, 2px stroke, 24px grid, 4px corner radius
 Assets:    3  ->  cart, heart, bell
-Canvas:    512x512, transparent PNG, exported to assets/generated/icons/
+Canvas:    512x512, transparent PNG
+Target:    Next.js detected -> public/assets/icons/   (see OUTPUT TARGET)
 Specialist: asset-icon
 ```
 
 Route to the matching specialist SKILL.md (`asset-icon`, `asset-illustration`, `asset-sprite`, `asset-texture`, `asset-social`) and follow its art-direction rules for the prompt.
 
-**Persist the style as a shared profile.** Don't keep palette/style only in this transient plan — write it once (with the Write tool) to `docs/style-profile.yaml` so every later generation and every other agent inherits the same context. Sanity-check it by reading it back: `id`, a hex `palette`, and a `prompt_suffix` are required. See **STYLE PROFILE** below.
+**Persist the style at two levels.** Don't keep palette/style only in this transient plan — write it out so it's reproducible:
+- **Project (shared):** write `docs/style-profile.yaml` once, so every later generation and every other agent inherits the same context.
+- **Per asset (snapshot):** for **each** asset the user describes, freeze the *resolved* style it was generated with into `docs/assets/styles/style-profile-<slug>.yaml` — the shared profile merged with any per-asset overrides (a one-off accent, a different camera). This is the exact recipe that produced that asset, so a variant or a re-render months later reproduces it pixel-for-pixel without guessing.
+
+Sanity-check both by reading back: `id`, a hex `palette`, and a `prompt_suffix` are required. The full shape is in **STYLE PROFILE** below.
 
 > *Optional (repo/CI):* `node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-style-profile.mjs" --in docs/style-profile.yaml` gates the profile automatically.
 
@@ -129,7 +152,15 @@ What has to happen:
 - For sprites: pack frames into a grid sheet + emit an atlas.
 - For textures: run the seamless-edge check.
 
-These touch real pixels, so they need an image library (e.g. `sharp`). Use whatever is **already available**: if the asset-canon repo is present, its `optimize-assets.mjs` / `pack-sprite.mjs` do this; otherwise write a short, readable helper into the user's project and run it with their consent. Don't make the user fetch and trust an opaque binary.
+These touch real pixels, so they need an image library — **`sharp`**. Background removal (keying the chroma plate to alpha), resizing, and format export all depend on it.
+
+**Before any pixel step, check that `sharp` is reachable** (e.g. `node -e "require('sharp')"` in the directory the work runs from). If it's missing, **stop and recommend the user install it** rather than skipping or faking the post-process:
+
+> *"To remove the background and export the size/format ladder I need `sharp`. It's not installed. Run `npm install sharp` (downloads a native libvips binary for your OS), then I'll continue."*
+
+Wait for their go-ahead, then proceed. Use whatever is **already available**: if the asset-canon repo is present, its `optimize-assets.mjs` / `pack-sprite.mjs` do this; otherwise write a short, readable helper into the user's project and run it with their consent. Don't make the user fetch and trust an opaque binary.
+
+If the user declines `sharp`, say plainly what you **can't** do (no transparent background, no resize ladder, no webp/ico) and deliver only what's possible (the raw generated image) — never silently ship an asset that still has its chroma-green plate.
 
 > *Optional (repo/CI):*
 > ```bash
@@ -138,7 +169,11 @@ These touch real pixels, so they need an image library (e.g. `sharp`). Use whate
 
 ## 5. WRITE + REPORT
 
-Write files to the output dir using the deterministic naming scheme. **For every asset, also write its sidecar descriptor to `docs/assets/<slug>.yaml`** (see ASSET DESCRIPTOR below) — the image and its descriptor land together, in the same step. Then report a table:
+Write files to the **framework-detected target** (OUTPUT TARGET above — e.g. `public/assets/icons/` for Next.js, `assets/` as fallback) using the deterministic naming scheme. **For every asset, also write two sidecars in the same step:**
+- its descriptor to `docs/assets/<slug>.yaml` (what the image *is* — content, placement; see ASSET DESCRIPTOR below),
+- its resolved style snapshot to `docs/assets/styles/style-profile-<slug>.yaml` (the style recipe that *produced* it; see STYLE PROFILE below).
+
+The image, its descriptor, and its style snapshot land together — an asset is not "done" until all three exist. Then report a table:
 
 ```
 | file                              | size    | format | bytes |
@@ -147,7 +182,25 @@ Write files to the output dir using the deterministic naming scheme. **For every
 | cart-icon-line-512x512.webp       | 512x512 | webp   | 2.3KB |
 ```
 
-Note the descriptor path in the report (`docs/assets/cart.yaml`), then end with the import snippet for the user's stack (e.g. `import cart from "@/assets/generated/icons/cart-icon-line-512x512.webp"`).
+Note the descriptor path in the report (`docs/assets/cart.yaml`), then end with the reference snippet that matches the **detected framework** — a `public/`-served file is referenced by URL, not imported (e.g. Next.js: `<img src="/assets/icons/cart-icon-line-512x512.webp" />`), whereas a bundled `src/assets` path is imported (e.g. `import cart from "@/assets/icons/cart-icon-line-512x512.webp"`).
+
+## 6. VERIFY — final acceptance gate
+
+**Don't call it done on faith.** After writing, run a last pass over the **files on disk** and confirm each asset meets the standard. Only report success for assets that pass; for any that fail, fix and re-run the relevant step (re-key, re-export, regenerate) before reporting.
+
+The checklist — per asset:
+- **Naming** — `<slug>-<variant>-<WxH>.<ext>`, lowercase kebab-case, no spaces/timestamps.
+- **Dimensions** — actual pixels equal the `WxH` in the filename (no upscale lie).
+- **Background** — for transparent assets: corners are alpha 0 **and** no plate-family residue survives among opaque pixels (see CHROMA-KEY re-check). Full-bleed assets: background intact, no stray alpha.
+- **Subject integrity** — no interior holes punched by keying.
+- **Palette** — colors stay within the batch budget; no off-palette slop (purple/blue AI glow, fake bevels).
+- **Formats** — every requested format/size actually emitted.
+- **Sidecars exist** — `docs/assets/<slug>.yaml` **and** `docs/assets/styles/style-profile-<slug>.yaml` are present and truthful (list only files that exist).
+- **Textures** — seamless edge-wrap verified. **Sprites** — frame count + atlas match the sheet.
+
+End the report with an explicit verdict per asset — `✓ PASS` or `✗ FAIL: <reason>` — never a silent "done."
+
+> *Optional (repo/CI):* `node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/asset-qa.mjs" --in <dir> --require-alpha --max-colors N --plate '#FF00FF' --plate-tol 70` runs naming/dimension/alpha/palette/plate-residue as a CI-friendly gate (exit 1 on any failure), and `validate-descriptors.mjs` gates that every asset has its descriptor.
 
 ---
 
@@ -230,16 +283,85 @@ Rules: keep `description`/`placement` truthful to what was actually generated; l
 
 A descriptor describes **one output**; the style profile prescribes the **shared input style** that keeps every asset consistent. It is the design-tokens-as-style-brief pattern (Style Dictionary / Penpot) applied to image generation: define the look once in `docs/style-profile.yaml`, and every generation — now or months later, by you or another agent — inherits it.
 
-Use `docs/style-profile.example.yaml` as the shape. Write `docs/style-profile.yaml`, then on **every** generation apply it yourself:
+Write `docs/style-profile.yaml` in the user's project using the shape below, then on **every** generation apply it yourself:
 - append `prompt_suffix` (the positive style anchor) to the prompt,
 - append `Avoid: <negative…>` (the anti-slop guard),
 - carry `seed` if the backend supports one (gpt-image-1 has no seed parameter, so skip it there).
 
 Required fields: `id`, `palette` (hex), `prompt_suffix`. Recommended: `line`, `shading`, `negative`, `seed`. One profile per project (or per brand/sub-theme); commit it so the style is reproducible.
 
+**Two tiers — shared source + per-asset snapshot.** The file below is the *project source*. Additionally, every time the user describes an asset, freeze the **resolved** style for that one asset to `docs/assets/styles/style-profile-<slug>.yaml`: copy the shared profile, apply any per-asset overrides actually used (a one-off accent, a different `camera`, a `magenta` plate for a green subject), and set `id` to `<shared-id>/<slug>`. Same shape as below. This snapshot is the exact recipe that produced the asset — point a future `--style-profile` at it to make a faithful variant. The shared profile keeps the *batch* consistent; the per-slug snapshot makes a *single asset* reproducible.
+
+```yaml
+# docs/style-profile.yaml — the SHARED style context for a whole project.
+# Define it once; every generation (and every other agent) reads it so assets
+# stay visually consistent — design-tokens-as-style-brief applied to image gen.
+# The generator injects prompt_suffix + "Avoid: <negative>", and seed (only on
+# backends that support it — gpt-image-1 has no seed param).
+
+id: acme-v1                         # required — name/version of this style
+palette:                            # required — the brand colors (hex)
+  - "#0B0B0F"
+  - "#F5F5F5"
+  - "#FF5C39"
+
+line:
+  weight: "2px @ 24px grid"
+  style: uniform                    # none | uniform | tapered
+shading: flat                       # flat | two-tone | soft-gradient
+lighting: top-left
+camera: front-flat                  # front-flat | side | iso
+proportions:
+  head_body: "1:6"
+
+# Appended to every prompt — the positive style anchor.
+prompt_suffix: "flat vector, cohesive Acme brand, crisp edges"
+
+# Appended as "Avoid: …" — the anti-slop guard.
+negative:
+  - "purple/blue AI glow"
+  - "fake 3D bevel"
+  - "meaningless floating blobs"
+  - "gradient mesh"
+
+# Locked seed for reproducibility. Honored only by backends that support it;
+# gpt-image-1 has no seed parameter, so it is recorded for provenance but not sent.
+seed: 73122
+```
+
 > *Optional (repo/CI):* `validate-style-profile.mjs` gates the profile and `codex-imagegen.mjs --style-profile docs/style-profile.yaml` applies it automatically.
 
 > **Scope note:** this is text/structured conditioning only. Stronger visual locking — passing reference images to gpt-image-1, or a local SD + LoRA backend — is a deliberate future step, not part of this profile.
+
+---
+
+## OUTPUT TARGET — detect the framework, write to its public folder
+
+Don't dump assets in a generic `assets/` by default. **First detect what the project is**, then write the image files where that framework actually serves static assets. Detect by reading the manifest/config at the repo root (don't guess from a single file):
+
+| Detected by | Framework | Asset target |
+|---|---|---|
+| `next.config.*`, or `next` in `package.json` deps | **Next.js** | `public/assets/` |
+| `nuxt.config.*`, or `nuxt` in deps | **Nuxt** | `public/assets/` (Nuxt 3) — fall back to `static/assets/` if a `static/` dir exists (Nuxt 2) |
+| `astro.config.*` | **Astro** | `public/assets/` |
+| `svelte.config.*` + `@sveltejs/kit` | **SvelteKit** | `static/assets/` |
+| `vite.config.*` (no Next/SvelteKit) | **Vite** (Vue/React/Solid) | `public/assets/` |
+| `react-scripts` in deps | **Create React App** | `public/assets/` |
+| `angular.json` | **Angular** | `src/assets/` |
+| `gatsby-config.*` | **Gatsby** | `static/assets/` |
+| `vue.config.*` | **Vue CLI** | `public/assets/` |
+| `_config.yml` + `Gemfile`, or `config.toml`/Hugo | **Jekyll / Hugo** | `static/assets/` (Hugo) · `assets/` (Jekyll) |
+| an existing `public/` dir, nothing else recognized | static site | `public/assets/` |
+| **nothing recognized, or empty repo** | unknown | `assets/` (repo-root fallback) |
+
+Rules:
+- **Confirm before writing** if detection is ambiguous or the target dir doesn't exist yet: state the framework you detected and the path you'll write to, e.g. *"Detected Next.js → writing to `public/assets/icons/`. OK?"*
+- Append the **asset-type subfolder** under the target: `icons/`, `illustrations/`, `sprites/`, `textures/`, `social/`.
+- If the user gave an explicit output dir in the brief, **that wins** — skip detection.
+- **Descriptors and style snapshots stay in `docs/`** regardless of framework (`docs/assets/<slug>.yaml`, `docs/assets/styles/`). Only the *served image files* follow the framework convention.
+- Monorepo: detect within the **package/app the user is working in**, not the workspace root.
+
+> *Optional (repo/CI):* a one-liner that reads `package.json`/configs and prints the target keeps this deterministic, but the agent can resolve it inline from the table above.
 
 ---
 
