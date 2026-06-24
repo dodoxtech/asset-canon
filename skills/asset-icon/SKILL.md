@@ -39,4 +39,25 @@ Generate on the chroma plate, then key `#00B140` to alpha in post (see **CHROMA-
 - [ ] Favicon ladder + apple-touch + maskable generated.
 - [ ] Sidecar `docs/assets/<slug>.yaml` written (subject, placement/intended_use, alt_text, files).
 
-Follow the `asset-canon` pipeline for generate → optimize → write → report.
+## OUTPUT & FINISH (works standalone)
+
+These steps run **with or without `asset-canon` installed.** If `asset-canon` is present it adds multi-asset routing and a shared style profile across asset types — but the rules below are self-contained, so installing only this skill still produces correctly-placed, verified output.
+
+1. **Where to write — detect the framework.** Read the repo root and write the served image files to that framework's static folder, then append the `icons/` subfolder. An explicit output dir from the user always wins.
+
+   | Detected at repo root | Target |
+   |---|---|
+   | `next.config.*` / `nuxt` / `astro.config.*` / `vite.config.*` / `react-scripts` / `vue.config.*` | `public/assets/icons/` |
+   | `@sveltejs/kit` / `gatsby-config.*` / Hugo (`config.toml`) | `static/assets/icons/` |
+   | `angular.json` | `src/assets/icons/` |
+   | nothing recognized / empty repo | `assets/icons/` (fallback) |
+
+   Descriptors and style snapshots always go under `docs/`, regardless of framework.
+
+2. **Post-process needs `sharp`.** Keying the chroma plate to alpha, resizing, and webp/png/ico export all need it. If it's missing, recommend `npm install sharp` and wait for the user — never ship an icon that still has its chroma-green plate.
+
+3. **Key the plate by tolerance, then re-check.** The plate doesn't come back flat (`#00B140` arrives as a cloud of near-greens). Key by color **distance / hue band**, not exact match; suppress edge spill; then scan the opaque pixels and confirm **no plate-family color survives** and the corners read alpha 0. Residue → widen the tolerance and re-key.
+
+4. **VERIFY before calling it done.** Confirm on the files on disk: naming `<slug>-<variant>-<WxH>.<ext>`; real pixels = the `WxH` in the name; background fully cut (no interior holes); palette in budget; every requested format/size emitted; sidecars `docs/assets/<slug>.yaml` **and** `docs/assets/styles/style-profile-<slug>.yaml` exist. Report `✓ PASS` / `✗ FAIL: <reason>` per icon and fix fails before reporting. (This is the universal gate; the icon-specific checklist above runs *on top of* it.)
+
+> The per-asset **style snapshot** (`docs/assets/styles/style-profile-<slug>.yaml`) is the resolved style recipe that produced the icon — freeze it on write so a future variant reproduces it. Full reference: the `asset-canon` skill.

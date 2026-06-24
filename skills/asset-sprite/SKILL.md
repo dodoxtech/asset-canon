@@ -102,4 +102,25 @@ All formats carry the same `x,y,w,h` per frame, so the sheet cuts identically wh
 - [ ] Tiles pass the seamless-edge check (delegate to asset-texture check).
 - [ ] Sidecar `docs/assets/<slug>.yaml` written, including the `animation` block (cell/columns/count/fps/loop/anchor/clips) so motion is reconstructable without opening the sheet.
 
-Run through the `asset-canon` pipeline.
+## OUTPUT & FINISH (works standalone)
+
+These steps run **with or without `asset-canon` installed.** If `asset-canon` is present it adds multi-asset routing and a shared style profile across asset types — but the rules below are self-contained, so installing only this skill still produces correctly-placed, verified output.
+
+1. **Where to write — detect the framework.** Read the repo root and write the served sprite files to that framework's static folder, then append the `sprites/` subfolder. An explicit output dir from the user always wins.
+
+   | Detected at repo root | Target |
+   |---|---|
+   | `next.config.*` / `nuxt` / `astro.config.*` / `vite.config.*` / `react-scripts` / `vue.config.*` | `public/assets/sprites/` |
+   | `@sveltejs/kit` / `gatsby-config.*` / Hugo (`config.toml`) | `static/assets/sprites/` |
+   | `angular.json` | `src/assets/sprites/` |
+   | nothing recognized / empty repo | `assets/sprites/` (fallback) |
+
+   Descriptors and style snapshots always live under `docs/`; the sheet PNG + atlas go to the framework target.
+
+2. **Post-process needs `sharp`.** Keying the chroma plate to alpha, resizing, and composing the actual sheet PNG all need it. If it's missing, recommend `npm install sharp` and wait for the user — never ship a sprite that still has its chroma plate.
+
+3. **Key the plate by tolerance, then re-check.** The `#00B140` plate doesn't come back flat. Key by color **distance / hue band**, not exact match; suppress edge spill; then scan opaque pixels to confirm **no plate-family color survives** and the cell margins read alpha 0. Residue → widen tolerance and re-key. (Predominantly-green sprites use the magenta plate instead.)
+
+4. **VERIFY before calling it done.** Confirm on the files on disk: naming `<slug>-<variant>-<WxH>.<ext>`; real pixels = the `WxH` in the name; transparent background fully cut, no interior holes; frame count + cell size match the atlas; palette in budget; sidecars `docs/assets/<slug>.yaml` **and** `docs/assets/styles/style-profile-<slug>.yaml` exist. Report `✓ PASS` / `✗ FAIL: <reason>` per asset and fix fails before reporting. (Universal gate; the checklist above runs *on top of* it.)
+
+> The per-asset **style snapshot** (`docs/assets/styles/style-profile-<slug>.yaml`) is the resolved style recipe that produced the sprite — freeze it on write so a future frame/variant reproduces it. Full reference: the `asset-canon` skill.

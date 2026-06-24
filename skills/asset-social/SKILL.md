@@ -37,4 +37,23 @@ Social images live at **exact platform sizes** with hard safe areas. Get the dim
 - [ ] Single brand palette, one accent — consistent with the site.
 - [ ] Sidecar `docs/assets/<slug>.yaml` written, with `platform`, `safe_area`, and `text_overlay` notes so it's reused without opening the image.
 
-Run through the `asset-canon` pipeline.
+## OUTPUT & FINISH (works standalone)
+
+These steps run **with or without `asset-canon` installed.** If `asset-canon` is present it adds multi-asset routing and a shared style profile across asset types — but the rules below are self-contained, so installing only this skill still produces correctly-placed, verified output. Social cards are **full-bleed — no chroma keying.**
+
+1. **Where to write — detect the framework.** Read the repo root and write the served image files to that framework's static folder, then append the `social/` subfolder. An explicit output dir from the user always wins. (OG images are usually referenced by absolute URL in `<meta>` tags, so a `public/`-served path is the common case.)
+
+   | Detected at repo root | Target |
+   |---|---|
+   | `next.config.*` / `nuxt` / `astro.config.*` / `vite.config.*` / `react-scripts` / `vue.config.*` | `public/assets/social/` |
+   | `@sveltejs/kit` / `gatsby-config.*` / Hugo (`config.toml`) | `static/assets/social/` |
+   | `angular.json` | `src/assets/social/` |
+   | nothing recognized / empty repo | `assets/social/` (fallback) |
+
+   Descriptors and style snapshots always go under `docs/`, regardless of framework.
+
+2. **Post-process needs `sharp`.** Resizing and webp/png/jpg export need it. If it's missing, recommend `npm install sharp` and wait for the user before the export step.
+
+3. **VERIFY before calling it done.** Confirm on the files on disk: naming `<slug>-<variant>-<WxH>.<ext>`; **exact platform dimensions** (e.g. 1200×630 for OG); key content inside the safe area (inner 90%); headline overlaid via SVG/HTML, not baked/warped into the raster; single brand palette; sidecars `docs/assets/<slug>.yaml` (with `platform`/`safe_area`/`text_overlay`) **and** `docs/assets/styles/style-profile-<slug>.yaml` exist. Report `✓ PASS` / `✗ FAIL: <reason>` per card and fix fails before reporting. (Universal gate; the checklist above runs *on top of* it.)
+
+> The per-asset **style snapshot** (`docs/assets/styles/style-profile-<slug>.yaml`) is the resolved style recipe that produced the card — freeze it on write so a future variant reproduces it. Full reference: the `asset-canon` skill.

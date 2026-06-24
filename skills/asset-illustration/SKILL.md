@@ -37,4 +37,25 @@ Applies only when the illustration ships with a transparent/cut-out background (
 - [ ] Composition leaves room for headline overlay if it's a hero.
 - [ ] Sidecar `docs/assets/<slug>.yaml` written, with a `composition` note (where the negative space is) so it's placed without opening the image.
 
-Run through the `asset-canon` pipeline.
+## OUTPUT & FINISH (works standalone)
+
+These steps run **with or without `asset-canon` installed.** If `asset-canon` is present it adds multi-asset routing and a shared style profile across asset types — but the rules below are self-contained, so installing only this skill still produces correctly-placed, verified output.
+
+1. **Where to write — detect the framework.** Read the repo root and write the served image files to that framework's static folder, then append the `illustrations/` subfolder. An explicit output dir from the user always wins.
+
+   | Detected at repo root | Target |
+   |---|---|
+   | `next.config.*` / `nuxt` / `astro.config.*` / `vite.config.*` / `react-scripts` / `vue.config.*` | `public/assets/illustrations/` |
+   | `@sveltejs/kit` / `gatsby-config.*` / Hugo (`config.toml`) | `static/assets/illustrations/` |
+   | `angular.json` | `src/assets/illustrations/` |
+   | nothing recognized / empty repo | `assets/illustrations/` (fallback) |
+
+   Descriptors and style snapshots always go under `docs/`, regardless of framework.
+
+2. **Post-process needs `sharp`.** Keying the chroma plate to alpha, resizing, and webp/png export all need it. If it's missing, recommend `npm install sharp` and wait for the user — never ship a cut-out that still has its chroma plate.
+
+3. **Cut-out only: key the plate by tolerance, then re-check.** For spot/empty-state/cut-out heroes generated on the `#00B140` plate: key by color **distance / hue band**, not exact match (the plate isn't flat); suppress edge spill; then scan opaque pixels to confirm **no plate-family color survives** and corners read alpha 0. Residue → widen tolerance and re-key. Full-scene heroes keep their background — skip keying.
+
+4. **VERIFY before calling it done.** Confirm on the files on disk: naming `<slug>-<variant>-<WxH>.<ext>`; real pixels = the `WxH` in the name; if cut-out, background fully cut with no interior holes; palette in budget; every requested format/size emitted; sidecars `docs/assets/<slug>.yaml` **and** `docs/assets/styles/style-profile-<slug>.yaml` exist. Report `✓ PASS` / `✗ FAIL: <reason>` per asset and fix fails before reporting. (Universal gate; the checklist above runs *on top of* it.)
+
+> The per-asset **style snapshot** (`docs/assets/styles/style-profile-<slug>.yaml`) is the resolved style recipe that produced the illustration — freeze it on write so a future variant reproduces it. Full reference: the `asset-canon` skill.

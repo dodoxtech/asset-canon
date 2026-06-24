@@ -35,4 +35,23 @@ Only ship after a clean 2×2 tile.
 - [ ] Exported at the declared tile size, no upscale.
 - [ ] Sidecar `docs/assets/<slug>.yaml` written, with `tileable: true` + `tile_size` + `tonality` so it's reused without opening the image.
 
-Run through the `asset-canon` pipeline.
+## OUTPUT & FINISH (works standalone)
+
+These steps run **with or without `asset-canon` installed.** If `asset-canon` is present it adds multi-asset routing and a shared style profile across asset types — but the rules below are self-contained, so installing only this skill still produces correctly-placed, verified output. Textures are **full-bleed — no chroma keying.**
+
+1. **Where to write — detect the framework.** Read the repo root and write the served texture files to that framework's static folder, then append the `textures/` subfolder. An explicit output dir from the user always wins.
+
+   | Detected at repo root | Target |
+   |---|---|
+   | `next.config.*` / `nuxt` / `astro.config.*` / `vite.config.*` / `react-scripts` / `vue.config.*` | `public/assets/textures/` |
+   | `@sveltejs/kit` / `gatsby-config.*` / Hugo (`config.toml`) | `static/assets/textures/` |
+   | `angular.json` | `src/assets/textures/` |
+   | nothing recognized / empty repo | `assets/textures/` (fallback) |
+
+   Descriptors and style snapshots always go under `docs/`, regardless of framework.
+
+2. **Post-process needs `sharp`.** Resizing and webp/png export need it. If it's missing, recommend `npm install sharp` and wait for the user before doing the resize ladder.
+
+3. **VERIFY before calling it done.** Confirm on the files on disk: naming `<slug>-<variant>-<WxH>.<ext>`; real pixels = the `WxH` in the name; **seamless edge-wrap verified** (no visible tile seam); within the 1–3 color budget (`asset-qa --max-colors 3`); every requested size emitted; sidecars `docs/assets/<slug>.yaml` (with `tileable`/`tile_size`/`tonality`) **and** `docs/assets/styles/style-profile-<slug>.yaml` exist. Report `✓ PASS` / `✗ FAIL: <reason>` per texture and fix fails before reporting. (Universal gate; the checklist above runs *on top of* it.)
+
+> The per-asset **style snapshot** (`docs/assets/styles/style-profile-<slug>.yaml`) is the resolved style recipe that produced the texture — freeze it on write so a future variant reproduces it. Full reference: the `asset-canon` skill.
