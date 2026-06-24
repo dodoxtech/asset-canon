@@ -7,13 +7,17 @@
  *   - dimensions   : actual pixels match the WxH in the filename (no upscale lie)
  *   - alpha        : has real transparent pixels when --require-alpha
  *   - palette      : unique color count <= --max-colors (slop / off-palette guard)
+ *   - plate residue: no opaque pixel still sits within --plate-tol of --plate
+ *                    (catches a chroma plate the AI rendered un-flat, e.g. a
+ *                    #FF00FF plate that came back as #F00AD9 / #E707D4 and was
+ *                    missed by an exact-match key)
  *
  * Uses `sharp` if installed; otherwise checks naming only and warns.
  * Exit code 0 = all pass, 1 = at least one failure (CI-friendly).
  *
  * Usage:
  *   node scripts/asset-qa.mjs --in assets/generated/icons \
- *     --require-alpha --max-colors 8
+ *     --require-alpha --max-colors 8 --plate '#FF00FF' --plate-tol 70
  */
 
 import { readdir } from "node:fs/promises";
@@ -33,8 +37,20 @@ const args = parseArgs(process.argv.slice(2));
 const inDir = args.in;
 const maxColors = args["max-colors"] ? Number(args["max-colors"]) : Infinity;
 
+function parseHex(hex) {
+  const h = hex?.replace(/^#/, "");
+  if (!h || !/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+const plate = parseHex(args.plate);
+const plateTol = args["plate-tol"] ? Number(args["plate-tol"]) : 70; // RGB Euclidean distance
+
 if (!inDir) {
-  console.error("Required: --in <dir>. Optional: --require-alpha --max-colors N");
+  console.error("Required: --in <dir>. Optional: --require-alpha --max-colors N --plate '#RRGGBB' --plate-tol N");
+  process.exit(2);
+}
+if (args.plate && !plate) {
+  console.error(`Bad --plate '${args.plate}': expected #RRGGBB`);
   process.exit(2);
 }
 
@@ -61,6 +77,20 @@ function hasTransparency(data, channels) {
   if (channels < 4) return false;
   for (let i = 3; i < data.length; i += channels) if (data[i] < 255) return true;
   return false;
+}
+
+// Count opaque pixels still within `tol` (RGB Euclidean distance) of the plate
+// color — i.e. leftover chroma-plate residue an exact-match key would miss.
+function plateResidue(data, channels, [pr, pg, pb], tol) {
+  const tol2 = tol * tol;
+  let residue = 0;
+  for (let i = 0; i < data.length; i += channels) {
+    const a = channels === 4 ? data[i + 3] : 255;
+    if (a < 200) continue; // only judge near-opaque pixels; edges are handled by spill suppression
+    const dr = data[i] - pr, dg = data[i + 1] - pg, db = data[i + 2] - pb;
+    if (dr * dr + dg * dg + db * db <= tol2) residue++;
+  }
+  return residue;
 }
 
 const files = (await readdir(inDir)).filter((f) => IMG.test(f));
@@ -94,7 +124,7 @@ for (const file of files) {
         else fail(`dims: file says ${wantW}x${wantH} but actual ${meta.width}x${meta.height}`);
       }
 
-      const needsPixels = args.requireAlpha || maxColors !== Infinity;
+      const needsPixels = args.requireAlpha || maxColors !== Infinity || plate;
       if (needsPixels) {
         const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 
@@ -111,6 +141,14 @@ for (const file of files) {
           n <= maxColors
             ? pass(`colors ${n}<=${maxColors}`)
             : fail(`palette: ${n > maxColors ? ">" + maxColors : n} colors (over budget ${maxColors})`);
+        }
+
+        // 5. plate residue (un-flat chroma plate the key left behind)
+        if (plate) {
+          const residue = plateResidue(data, info.channels, plate, plateTol);
+          residue === 0
+            ? pass(`no plate residue (±${plateTol})`)
+            : fail(`plate residue: ${residue} opaque px within ±${plateTol} of #${args.plate.replace(/^#/, "")} (re-key with wider tolerance)`);
         }
       }
     } catch (e) {
