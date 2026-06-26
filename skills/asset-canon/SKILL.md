@@ -86,6 +86,8 @@ If any plate-colored pixels remain, **widen the tolerance and re-key**, then re-
 
 ## 1. BRIEF — what to extract
 
+> **First, is this a restyle?** If the user asks to change the style of assets that *already exist* ("switch to Disney style", "make everything flat", "recolor the set"), don't treat it as a new brief — jump to the **RESTYLE** flow (update the profile → confirm → regenerate from the existing descriptors).
+
 Before generating anything, resolve these. Ask only if a value is load-bearing and missing:
 
 - **Asset type** → icon / illustration / sprite / texture / social (routes to a specialist skill)
@@ -332,6 +334,30 @@ seed: 73122
 > *Optional (repo/CI):* `validate-style-profile.mjs` gates the profile and `codex-imagegen.mjs --style-profile docs/style-profile.yaml` applies it automatically.
 
 > **Scope note:** this is text/structured conditioning only. Stronger visual locking — passing reference images to gpt-image-1, or a local SD + LoRA backend — is a deliberate future step, not part of this profile.
+
+---
+
+## RESTYLE — change the style of assets that already exist
+
+When the user asks to **change the style of what's already generated** — *"switch from pixel to Disney style"*, *"make everything flat"*, *"recolor the set to our new palette"* — do **not** treat it as a fresh brief and do **not** start generating. Run this flow, in order:
+
+**1. Update the style profile first — generate nothing yet.**
+Read the current `docs/style-profile.yaml`, apply the requested change (e.g. `style: pixel → 3d-clay/disney`, rewrite `prompt_suffix`, adjust `palette`/ramps/`shading`/`negative` to match), and **bump the `id`** to mark the new version (e.g. `acme-v1 → acme-disney-v1`). Write it back. Show the user the before→after of the key fields so the new direction is explicit.
+
+**2. Enumerate what exists — read the sidecar files (this is "check the current JSON").**
+Glob `docs/assets/*.yaml` (the descriptors) and `docs/assets/styles/style-profile-*.yaml` (the per-asset snapshots). These are exactly what makes regeneration possible *without the original prompts*: each descriptor carries the asset's `subject`, `type`/specialist, `placement`, files, and content; each snapshot carries the style it was last made with. Build the list of affected assets from them.
+
+**3. Confirm before regenerating — ask, don't auto-burn.**
+Present the change and the impact, then stop for a decision:
+> *"Updated the style profile to **disney-v1**. This affects **N** assets: cart, hero, knight-run, … Regenerate them now? — **all** / **pick some** / **none** (profile stays updated; new assets will use it)."*
+Generation costs money and overwrites files, so never skip this confirmation. If the user says none, you're done — the profile is updated and future generations inherit it.
+
+**4. On approval, regenerate each chosen asset.**
+For each one: rebuild the prompt from its **descriptor** (`subject` + `type` + composition/placement notes) merged with the **new** style profile, route to the matching specialist, run GENERATE → POST-PROCESS → WRITE → VERIFY. Because names are deterministic, the new files **overwrite the same paths** (same `<slug>-<variant>-<WxH>.<ext>`), so nothing in the user's code needs to change. Update each per-asset **style snapshot** to the new resolved style, and update the **style fields** of each descriptor (keep its `subject`/`placement`/content truthful — only the look changed).
+
+**5. Report** the before→after profile `id`, which assets were regenerated (and which were skipped), and the file paths touched.
+
+> Selective restyle is supported by design: the user can keep a one-off asset on its old snapshot (skip it in step 3) while the rest move to the new profile — the per-asset snapshot is what preserves that divergence.
 
 ---
 
