@@ -55,7 +55,22 @@ The FRAME GRID STANDARD below handles *packing*; these are the *motion* rules:
 - **Anchor stability.** Every frame shares the same pivot pixel (bottom-center for grounded characters) so playback doesn't jitter. *(Q — also the packing rule below)*
 - **Loop seamlessly** for cyclic actions; the last frame must flow into the first — test the wrap. *(Q)*
 - **Frame economy.** Mirror/reuse symmetric frames; a readable run is often 6–8 well-spaced frames, not 24 muddy ones.
-- **Canonical cycles:** *walk* = contact → down → passing → up (×2 sides, classically 8 frames); *idle* = a subtle breathing loop (2–6 frames), never frozen; *attack* = anticipation → strike (with a smear) → recovery. *(P)*
+- **Canonical cycles:** *walk* = contact → down → passing → up (×2 sides); *idle* = a subtle breathing loop, never frozen; *attack* = anticipation → strike (with a smear) → recovery. *(P)*
+
+**How many frames + how fast — the established defaults.** These are the shipped-game conventions; pick a count, then carry it as `count`/`fps` in the atlas and the per-asset `animation` block. *The golden rule: timing beats count — 4 well-timed frames (uneven hold times) beat 12 evenly-spaced ones.* Don't pad frames to chase smoothness.
+
+| Action | Frames (typical) | Playback FPS | Notes |
+|---|---|---|---|
+| **Idle** | **2** (range 2–6) | 4–6 (slow) | breathe in / breathe out, ~200–800 ms hold each; never a single static frame |
+| **Walk** | **4** small (16×16) → **6–8** at 32×32+ | 8 casual, 10–12 brisk | 4 key poses: contact → down(recoil) → passing → up, mirrored for both legs |
+| **Run** | **4–8** (6 is a safe default) | 10–15 | faster spacing than walk; real refs: Celeste run = 4, Shovel Knight walk = 6 |
+| **Attack** | **3–5** | 10–15 (snappy) | anticipation → strike(+smear) → recovery; hold the impact frame |
+| **Jump** | **1–3 per phase** | per phase | split into rise / peak / fall, not one cycle |
+
+Guidance baked in:
+- **8–12 FPS is the character-animation sweet spot.** Idle slower (4–6), attacks faster (10–15). **Above ~15 FPS a pixel sprite starts to look *too* smooth and loses the aesthetic** — more frames is not "better."
+- **Animation FPS ≠ game render FPS.** The game renders at 60; the sprite *plays back* at 8–12 — that's the `fps` in the atlas, the rate frames advance, not the engine's frame rate.
+- **More frames = more model generations = more cost + more drift.** Each frame is a separate image-model call here, so a 24-frame run is 24 chances for the subject to drift off-model. Prefer the low end (4–8) and lean on timing.
 
 ### 7. Tiles & tilesets
 - **Seamless on the wrapped axes** — opposite edges line up (asset-texture seam check). *(Q)*
