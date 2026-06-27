@@ -87,6 +87,8 @@ If any plate-colored pixels remain, **widen the tolerance and re-key**, then re-
 ## 1. BRIEF — what to extract
 
 > **First, is this a restyle?** If the user asks to change the style of assets that *already exist* ("switch to Disney style", "make everything flat", "recolor the set"), don't treat it as a new brief — jump to the **RESTYLE** flow (update the profile → confirm → regenerate from the existing descriptors).
+>
+> **Or a style extraction?** If the user imports a reference image to anchor the look ("match this image", "use this as the style", "make assets that look like this"), don't reverse-engineer the style here — route to **`asset-style-extract`**, which reads the reference and writes `docs/style-profile.yaml`. Then generation continues normally, inheriting that profile.
 
 Before generating anything, resolve these. Ask only if a value is load-bearing and missing:
 
@@ -292,6 +294,8 @@ Write `docs/style-profile.yaml` in the user's project using the shape below, the
 
 Required fields: `id`, `palette` (hex), `prompt_suffix`. Recommended: `line`, `shading`, `negative`, `seed`. One profile per project (or per brand/sub-theme); commit it so the style is reproducible.
 
+**Optional richer blocks** (written by `asset-style-extract` when a profile is reverse-engineered from a reference image, ignored safely by every reader that doesn't need them): `source_ref` (path to the analyzed reference), `medium`, `swatches` (palette colors with `role` + area `weight`), `ramps` (per-material shadow→mid→highlight), `color` (saturation/temperature/contrast/harmony/hue_shift), `fx`, and `confidence` (per-field certainty). `palette` itself stays a **flat hex list** so the validator and the generator keep working — the detail lives in these side blocks.
+
 **Two tiers — shared source + per-asset snapshot.** The file below is the *project source*. Additionally, every time the user describes an asset, freeze the **resolved** style for that one asset to `docs/assets/styles/style-profile-<slug>.yaml`: copy the shared profile, apply any per-asset overrides actually used (a one-off accent, a different `camera`, a `magenta` plate for a green subject), and set `id` to `<shared-id>/<slug>`. Same shape as below. This snapshot is the exact recipe that produced the asset — point a future `--style-profile` at it to make a faithful variant. The shared profile keeps the *batch* consistent; the per-slug snapshot makes a *single asset* reproducible.
 
 ```yaml
@@ -333,7 +337,7 @@ seed: 73122
 
 > *Optional (repo/CI):* `validate-style-profile.mjs` gates the profile and `codex-imagegen.mjs --style-profile docs/style-profile.yaml` applies it automatically.
 
-> **Scope note:** this is text/structured conditioning only. Stronger visual locking — passing reference images to gpt-image-1, or a local SD + LoRA backend — is a deliberate future step, not part of this profile.
+> **Scope note:** this is text/structured conditioning only. A profile can be **reverse-engineered from a reference image** by `asset-style-extract` (which fills the optional blocks above and records `source_ref`), but the conditioning that reaches the model is still text — `prompt_suffix` + `Avoid: <negative>`. Stronger visual locking — passing the `source_ref` image to gpt-image-1, or a local SD + LoRA backend — is a deliberate future step the schema is forward-compatible with, not part of this profile yet.
 
 ---
 
@@ -400,5 +404,8 @@ Rules:
 | game sprite, character, tile, spritesheet | `asset-sprite` |
 | background, pattern, seamless, surface | `asset-texture` |
 | OG image, social card, thumbnail, banner | `asset-social` |
+| "match this image", imported reference to copy the look from | `asset-style-extract` |
 
 When in doubt, ask the user which specialist fits, then commit to one palette and run the pipeline.
+
+> `asset-style-extract` is a **pre-step**, not an output specialist: it produces a style profile from a reference, then you route the actual subject to one of the five generators above.

@@ -83,6 +83,7 @@ These appear **in your own project** as you generate. You rarely edit them by ha
 | Sprites | `asset-sprite` | Game sprites, tiles, spritesheets + atlas |
 | Textures | `asset-texture` | Seamless tileable backgrounds & patterns |
 | Social | `asset-social` | OG cards, thumbnails, banners at exact sizes |
+| Style extract | `asset-style-extract` | Reverse-engineer a reusable style profile from an imported reference image |
 
 ## Commands
 
@@ -126,6 +127,10 @@ The skills are **instruction-first**: an agent runs the whole pipeline with its 
 ```bash
 # define the shared style once, validate it, then every asset inherits it
 node scripts/validate-style-profile.mjs --in docs/style-profile.yaml
+
+# reverse-engineer the measurable palette/color from a reference image, to paste
+# into docs/style-profile.yaml (the asset-style-extract skill; needs sharp)
+node scripts/extract-palette.mjs --in docs/assets/refs/hero.png --colors 12
 
 # generate one asset (Codex CLI backend, or OpenAI image API if OPENAI_API_KEY is set)
 # --style-profile appends the shared style suffix + anti-slop guard + seed
@@ -175,7 +180,8 @@ asset-canon/
 │   ├── asset-illustration/SKILL.md
 │   ├── asset-sprite/SKILL.md
 │   ├── asset-texture/SKILL.md
-│   └── asset-social/SKILL.md
+│   ├── asset-social/SKILL.md
+│   └── asset-style-extract/SKILL.md  # reference image -> style profile
 ├── scripts/
 │   ├── codex-imagegen.mjs      # generation executor
 │   ├── optimize-assets.mjs     # post-process

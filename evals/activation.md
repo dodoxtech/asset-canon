@@ -28,6 +28,8 @@ drive activation, so editing one can silently break routing for another.
 | 9 | "seamless concrete surface texture for a hero bg" | asset-texture | ☐ |
 | 10 | "create an OG image for a blog post to share on Facebook" | asset-social | ☐ |
 | 11 | "make a YouTube thumbnail, 1280x720" | asset-social | ☐ |
+| 11a | "here's a screenshot — make my assets look like this" | asset-style-extract | ☐ |
+| 11b | "use this image as the style reference for the set" | asset-style-extract | ☐ |
 
 ## Disambiguation cases (easy to route wrong)
 

@@ -5,7 +5,7 @@
 # Usage: ./skill.sh <skill-name>   (prints the path)
 #        ./skill.sh                 (lists available skills)
 
-SKILLS="asset-canon asset-icon asset-illustration asset-sprite asset-texture asset-social"
+SKILLS="asset-canon asset-icon asset-illustration asset-sprite asset-texture asset-social asset-style-extract"
 
 skill_path() {
   case "$1" in
@@ -15,6 +15,7 @@ skill_path() {
     asset-sprite)       echo "skills/asset-sprite/SKILL.md" ;;
     asset-texture)      echo "skills/asset-texture/SKILL.md" ;;
     asset-social)       echo "skills/asset-social/SKILL.md" ;;
+    asset-style-extract) echo "skills/asset-style-extract/SKILL.md" ;;
     *)                  echo "" ;;
   esac
 }

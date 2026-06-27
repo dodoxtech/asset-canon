@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- New `asset-style-extract` skill: analyze a reference image the user imports and
+  reverse-engineer a reusable style profile from it — palette (with roles +
+  weights), ramps, medium, line, shading, light, proportions, post-FX — written
+  to `docs/style-profile.yaml` so every later asset is generated in the same look
+  as the reference. Extracts *style, not subject*; marks per-field `confidence`
+  and confirms the judgment calls before writing. New `scripts/extract-palette.mjs`
+  measures the "(A)" half (dominant palette + area weights, saturation/
+  temperature/contrast) for paste-in; the agent judges the "(V)" half by eye.
+  Routed as a pre-step in `asset-canon`; the profile schema gained optional
+  `source_ref`/`medium`/`swatches`/`ramps`/`color`/`fx`/`confidence` blocks
+  (backward-compatible — `palette` stays a flat hex list).
 - Instruction-first skills: SKILL.md now describes each pipeline step as work the
   agent performs with its own tools (generate via the environment's image model,
   Write/Read/Bash to post-process and record), under the user's normal approval
