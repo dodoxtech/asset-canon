@@ -88,7 +88,7 @@ If any plate-colored pixels remain, **widen the tolerance and re-key**, then re-
 
 > **First, is this a restyle?** If the user asks to change the style of assets that *already exist* ("switch to Disney style", "make everything flat", "recolor the set"), don't treat it as a new brief — jump to the **RESTYLE** flow (update the profile → confirm → regenerate from the existing descriptors).
 >
-> **Or a style extraction?** If the user imports a reference image to anchor the look ("match this image", "use this as the style", "make assets that look like this"), don't reverse-engineer the style here — route to **`asset-style-extract`**, which reads the reference and writes `docs/style-profile.yaml`. Then generation continues normally, inheriting that profile.
+> **Or a style extraction?** If the user imports a reference image to anchor the look ("match this image", "use this as the style", "make assets that look like this"), don't reverse-engineer the style here — route to **`asset-style-extract`**, which reads the reference and writes `docs/assets/style/style-profile.yaml/<id>.yaml`. Then generation continues normally, inheriting that profile.
 
 Before generating anything, resolve these. Ask only if a value is load-bearing and missing:
 
@@ -117,12 +117,12 @@ Specialist: asset-icon
 Route to the matching specialist SKILL.md (`asset-icon`, `asset-illustration`, `asset-sprite`, `asset-texture`, `asset-social`) and follow its art-direction rules for the prompt.
 
 **Persist the style at two levels.** Don't keep palette/style only in this transient plan — write it out so it's reproducible:
-- **Project (shared):** write `docs/style-profile.yaml` once, so every later generation and every other agent inherits the same context.
+- **Project (shared):** write `docs/assets/style/style-profile.yaml/<id>.yaml` once, so every later generation and every other agent inherits the same context.
 - **Per asset (snapshot):** for **each** asset the user describes, freeze the *resolved* style it was generated with into `docs/assets/styles/style-profile-<slug>.yaml` — the shared profile merged with any per-asset overrides (a one-off accent, a different camera). This is the exact recipe that produced that asset, so a variant or a re-render months later reproduces it pixel-for-pixel without guessing.
 
 Sanity-check both by reading back: `id`, a hex `palette`, and a `prompt_suffix` are required. The full shape is in **STYLE PROFILE** below.
 
-> *Optional (repo/CI):* `node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-style-profile.mjs" --in docs/style-profile.yaml` gates the profile automatically.
+> *Optional (repo/CI):* `node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/validate-style-profile.mjs" --in docs/assets/style/style-profile.yaml/<id>.yaml` gates the profile automatically.
 
 ## 3. GENERATE — drive the image model
 
@@ -135,14 +135,14 @@ Generate each asset with the **image model the environment provides** (the user'
 + "Avoid: <the profile's `negative` list>"
 ```
 
-You apply the shared style yourself: read `docs/style-profile.yaml`, append its `prompt_suffix` and `Avoid: …` to every prompt, and carry its `seed` if the backend supports one — **this is what keeps a batch consistent.** Generate at the **largest** required size once; downscale in post-process. For transparent assets, bake the chroma plate into the prompt (see **CHROMA-KEY BACKGROUND**) and key the green to alpha in post — don't ask the model for "transparent" directly.
+You apply the shared style yourself: read `docs/assets/style/style-profile.yaml/<id>.yaml`, append its `prompt_suffix` and `Avoid: …` to every prompt, and carry its `seed` if the backend supports one — **this is what keeps a batch consistent.** Generate at the **largest** required size once; downscale in post-process. For transparent assets, bake the chroma plate into the prompt (see **CHROMA-KEY BACKGROUND**) and key the green to alpha in post — don't ask the model for "transparent" directly.
 
 For a batch, generate **sequentially in the same run** and announce progress: `Asset 1 of 3: cart`, `Asset 2 of 3: heart`, …
 
 > *Optional (repo/CI):* the wrapper applies the profile and calls the Codex CLI / OpenAI image API for you:
 > ```bash
 > node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/codex-imagegen.mjs" --prompt "<…>" \
->   --size 1024x1024 --background opaque --style-profile docs/style-profile.yaml \
+>   --size 1024x1024 --background opaque --style-profile docs/assets/style/style-profile.yaml/<id>.yaml \
 >   --out assets/generated/icons/cart-icon-line-1024x1024.png
 > ```
 
@@ -285,9 +285,9 @@ Rules: keep `description`/`placement` truthful to what was actually generated; l
 
 ## STYLE PROFILE (shared style context)
 
-A descriptor describes **one output**; the style profile prescribes the **shared input style** that keeps every asset consistent. It is the design-tokens-as-style-brief pattern (Style Dictionary / Penpot) applied to image generation: define the look once in `docs/style-profile.yaml`, and every generation — now or months later, by you or another agent — inherits it.
+A descriptor describes **one output**; the style profile prescribes the **shared input style** that keeps every asset consistent. It is the design-tokens-as-style-brief pattern (Style Dictionary / Penpot) applied to image generation: define the look once in `docs/assets/style/style-profile.yaml/<id>.yaml`, and every generation — now or months later, by you or another agent — inherits it.
 
-Write `docs/style-profile.yaml` in the user's project using the shape below, then on **every** generation apply it yourself:
+Write `docs/assets/style/style-profile.yaml/<id>.yaml` in the user's project using the shape below, then on **every** generation apply it yourself:
 - append `prompt_suffix` (the positive style anchor) to the prompt,
 - append `Avoid: <negative…>` (the anti-slop guard),
 - carry `seed` if the backend supports one (gpt-image-1 has no seed parameter, so skip it there).
@@ -299,7 +299,7 @@ Required fields: `id`, `palette` (hex), `prompt_suffix`. Recommended: `line`, `s
 **Two tiers — shared source + per-asset snapshot.** The file below is the *project source*. Additionally, every time the user describes an asset, freeze the **resolved** style for that one asset to `docs/assets/styles/style-profile-<slug>.yaml`: copy the shared profile, apply any per-asset overrides actually used (a one-off accent, a different `camera`, a `magenta` plate for a green subject), and set `id` to `<shared-id>/<slug>`. Same shape as below. This snapshot is the exact recipe that produced the asset — point a future `--style-profile` at it to make a faithful variant. The shared profile keeps the *batch* consistent; the per-slug snapshot makes a *single asset* reproducible.
 
 ```yaml
-# docs/style-profile.yaml — the SHARED style context for a whole project.
+# docs/assets/style/style-profile.yaml/<id>.yaml — the SHARED style context for a whole project.
 # Define it once; every generation (and every other agent) reads it so assets
 # stay visually consistent — design-tokens-as-style-brief applied to image gen.
 # The generator injects prompt_suffix + "Avoid: <negative>", and seed (only on
@@ -335,7 +335,7 @@ negative:
 seed: 73122
 ```
 
-> *Optional (repo/CI):* `validate-style-profile.mjs` gates the profile and `codex-imagegen.mjs --style-profile docs/style-profile.yaml` applies it automatically.
+> *Optional (repo/CI):* `validate-style-profile.mjs` gates the profile and `codex-imagegen.mjs --style-profile docs/assets/style/style-profile.yaml/<id>.yaml` applies it automatically.
 
 > **Scope note:** this is text/structured conditioning only. A profile can be **reverse-engineered from a reference image** by `asset-style-extract` (which fills the optional blocks above and records `source_ref`), but the conditioning that reaches the model is still text — `prompt_suffix` + `Avoid: <negative>`. Stronger visual locking — passing the `source_ref` image to gpt-image-1, or a local SD + LoRA backend — is a deliberate future step the schema is forward-compatible with, not part of this profile yet.
 
@@ -346,7 +346,7 @@ seed: 73122
 When the user asks to **change the style of what's already generated** — *"switch from pixel to Disney style"*, *"make everything flat"*, *"recolor the set to our new palette"* — do **not** treat it as a fresh brief and do **not** start generating. Run this flow, in order:
 
 **1. Update the style profile first — generate nothing yet.**
-Read the current `docs/style-profile.yaml`, apply the requested change (e.g. `style: pixel → 3d-clay/disney`, rewrite `prompt_suffix`, adjust `palette`/ramps/`shading`/`negative` to match), and **bump the `id`** to mark the new version (e.g. `acme-v1 → acme-disney-v1`). Write it back. Show the user the before→after of the key fields so the new direction is explicit.
+Read the current `docs/assets/style/style-profile.yaml/<id>.yaml`, apply the requested change (e.g. `style: pixel → 3d-clay/disney`, rewrite `prompt_suffix`, adjust `palette`/ramps/`shading`/`negative` to match), and **bump the `id`** to mark the new version (e.g. `acme-v1 → acme-disney-v1`). Write it back. Show the user the before→after of the key fields so the new direction is explicit.
 
 **2. Enumerate what exists — read the sidecar files (this is "check the current JSON").**
 Glob `docs/assets/*.yaml` (the descriptors) and `docs/assets/styles/style-profile-*.yaml` (the per-asset snapshots). These are exactly what makes regeneration possible *without the original prompts*: each descriptor carries the asset's `subject`, `type`/specialist, `placement`, files, and content; each snapshot carries the style it was last made with. Build the list of affected assets from them.

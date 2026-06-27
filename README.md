@@ -44,7 +44,7 @@ BRIEF  →  PLAN  →  GENERATE  →  OPTIMIZE  →  WRITE  →  VERIFY  →  RE
 | Step | What the agent does |
 |---|---|
 | **BRIEF** | Reads your request (or you run `/asset-new` to scaffold one). |
-| **PLAN** | Picks the right specialist (icon / illustration / sprite / texture / social), locks **one** palette + style (written to `docs/style-profile.yaml`), and **detects your framework** to choose where assets go (Next.js → `public/assets/`, fallback → `assets/`). |
+| **PLAN** | Picks the right specialist (icon / illustration / sprite / texture / social), locks **one** palette + style (written to `docs/assets/style/style-profile.yaml/<id>.yaml`), and **detects your framework** to choose where assets go (Next.js → `public/assets/`, fallback → `assets/`). |
 | **GENERATE** | Calls an **image model** (Codex CLI or OpenAI `gpt-image-1`) to render the pixels. Never draws art in code. Renders on a chroma-green plate when a transparent background is needed. |
 | **OPTIMIZE** | Keys out the background to real alpha (tolerance-based, then re-checked for residue), downscales to a size ladder, exports webp/png/ico, packs sprite sheets, strips metadata. |
 | **WRITE** | Saves the image files in your framework's static folder (e.g. `public/assets/icons/`) with deterministic names (`cart-icon-line-512x512.png`), a descriptor in `docs/assets/`, and a per-asset style snapshot in `docs/assets/styles/`. |
@@ -66,7 +66,7 @@ These appear **in your own project** as you generate. You rarely edit them by ha
 
 | File / folder | Role | Who writes it |
 |---|---|---|
-| `docs/style-profile.yaml` | **The shared look (project source).** One palette, line weight, shading, `prompt_suffix`, anti-slop `negative` list, and `seed`. Every generation reads it so a whole project stays visually consistent. Written once, reused forever. | Skill (on first PLAN) — commit it |
+| `docs/assets/style/style-profile.yaml/<id>.yaml` | **The shared look (project source).** One palette, line weight, shading, `prompt_suffix`, anti-slop `negative` list, and `seed`. Every generation reads it so a whole project stays visually consistent. Written once, reused forever. | Skill (on first PLAN) — commit it |
 | `<static-dir>/assets/<type>/<slug>-<variant>-<WxH>.<ext>` | **The actual asset files**, written to your framework's static folder — `public/assets/` (Next.js, Astro, Vite, CRA…), `static/assets/` (SvelteKit, Hugo…), `src/assets/` (Angular), or `assets/` if no framework is detected. Deterministic, lowercase-kebab names; transparent PNG where it matters, plus the webp/png/ico ladder. | Skill (GENERATE + OPTIMIZE) |
 | `docs/assets/<slug>.yaml` | **Sidecar descriptor.** Machine-readable record of each asset's content, style, and intended placement — so another agent can place the asset correctly **without opening the image**. | Skill (WRITE) |
 | `docs/assets/styles/style-profile-<slug>.yaml` | **Per-asset style snapshot.** The *resolved* style recipe that produced this one asset (shared profile + any per-asset overrides). Point a future generation at it to reproduce or make a faithful variant. | Skill (WRITE) |
@@ -126,17 +126,17 @@ The skills are **instruction-first**: an agent runs the whole pipeline with its 
 
 ```bash
 # define the shared style once, validate it, then every asset inherits it
-node scripts/validate-style-profile.mjs --in docs/style-profile.yaml
+node scripts/validate-style-profile.mjs --in docs/assets/style/style-profile.yaml/<id>.yaml
 
 # reverse-engineer the measurable palette/color from a reference image, to paste
-# into docs/style-profile.yaml (the asset-style-extract skill; needs sharp)
+# into docs/assets/style/style-profile.yaml/<id>.yaml (the asset-style-extract skill; needs sharp)
 node scripts/extract-palette.mjs --in docs/assets/refs/hero.png --colors 12
 
 # generate one asset (Codex CLI backend, or OpenAI image API if OPENAI_API_KEY is set)
 # --style-profile appends the shared style suffix + anti-slop guard + seed
 node scripts/codex-imagegen.mjs --prompt "minimal line icon of a cart" \
   --size 1024x1024 --background transparent \
-  --style-profile docs/style-profile.yaml \
+  --style-profile docs/assets/style/style-profile.yaml/<id>.yaml \
   --out assets/generated/icons/cart-icon-line-1024x1024.png
 
 # optimize a folder into a size/format ladder (needs `npm install` for sharp)

@@ -8,7 +8,7 @@
  * with area weights, plus overall saturation / temperature / contrast. The
  * "(V) — judged" half (medium, hue-shift, shading model, outline) is the agent's
  * job. Output is YAML ready to paste under `palette` / `swatches` / `color` in
- * docs/style-profile.yaml.
+ * docs/assets/style/style-profile.yaml/<id>.yaml.
  *
  * Needs `sharp`. If it's missing, says so and exits non-zero (the skill falls
  * back to low-confidence visual estimates).
@@ -113,7 +113,7 @@ const contrast = valueRange > 0.6 ? "high" : valueRange > 0.35 ? "medium" : "low
 
 // --- emit YAML ------------------------------------------------------------
 const lines = [];
-lines.push(`# measured from ${args.in} — paste into docs/style-profile.yaml`);
+lines.push(`# measured from ${args.in} — paste into docs/assets/style/style-profile.yaml/<id>.yaml`);
 lines.push(`# (A) measured here; medium / hue-shift / shading / outline are (V) — judge by eye.`);
 lines.push("");
 lines.push("palette:");

@@ -2,7 +2,7 @@
 /**
  * validate-style-profile.mjs — sanity-check the shared style profile.
  *
- * The style profile (docs/style-profile.yaml) is the shared style context every
+ * The style profile (docs/assets/style/style-profile.yaml/<id>.yaml) is the shared style context every
  * generation reads. A broken profile silently de-consistifies a whole batch, so
  * gate it: required fields present, palette entries are real hex, seed numeric,
  * negative is a list. Lightweight structural parse — no third-party deps.
@@ -10,7 +10,7 @@
  * Exit 0 = pass, 1 = failure (CI-friendly).
  *
  * Usage:
- *   node scripts/validate-style-profile.mjs --in docs/style-profile.yaml
+ *   node scripts/validate-style-profile.mjs --in docs/assets/style/style-profile.yaml/<id>.yaml
  */
 
 import { readFile } from "node:fs/promises";
@@ -27,7 +27,7 @@ function parseArgs(argv) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-const file = resolve(args.in || "docs/style-profile.yaml");
+const file = resolve(args.in || "docs/assets/style/style-profile.yaml/<id>.yaml");
 if (!existsSync(file)) {
   console.error(`No style profile at ${file}. See the STYLE PROFILE section of the asset-canon skill for the shape to write.`);
   process.exit(1);

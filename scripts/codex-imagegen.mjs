@@ -10,14 +10,14 @@
  * To keep a whole batch visually consistent, pass --style-profile: it appends
  * the profile's `prompt_suffix` and an "Avoid: <negative>" guard to every prompt,
  * and locks `seed` on backends that support it (the Codex executor; gpt-image-1
- * has no seed parameter, so seed is skipped there). See docs/style-profile.yaml.
+ * has no seed parameter, so seed is skipped there). See docs/assets/style/style-profile.yaml/<id>.yaml.
  *
  * Usage:
  *   node scripts/codex-imagegen.mjs \
  *     --prompt "minimal line icon of a cart..." \
  *     --size 1024x1024 \
  *     --background transparent \
- *     --style-profile docs/style-profile.yaml \
+ *     --style-profile docs/assets/style/style-profile.yaml/<id>.yaml \
  *     --out assets/generated/icons/cart-icon-line-1024x1024.png
  */
 
