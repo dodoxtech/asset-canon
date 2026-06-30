@@ -2,7 +2,7 @@
 /**
  * validate-style-profile.mjs — sanity-check the shared style profile.
  *
- * The style profile (docs/assets/style/style-profile.yaml/<id>.yaml) is the shared style context every
+ * The style profile (docs/assets/styles/style-profile-<slug>.yaml) is the shared style context every
  * generation reads. A broken profile silently de-consistifies a whole batch, so
  * gate it: required fields present, palette entries are real hex, seed numeric,
  * negative is a list. Lightweight structural parse — no third-party deps.
@@ -10,11 +10,11 @@
  * Exit 0 = pass, 1 = failure (CI-friendly).
  *
  * Usage:
- *   node scripts/validate-style-profile.mjs --in docs/assets/style/style-profile.yaml/<id>.yaml
+ *   node scripts/validate-style-profile.mjs --in docs/assets/styles/style-profile-<slug>.yaml
  */
 
 import { readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 function parseArgs(argv) {
@@ -26,8 +26,23 @@ function parseArgs(argv) {
   return args;
 }
 
+// With no --in, resolve the active profile via the pointer file
+// docs/assets/styles/active.yaml ("active: style-profile-<slug>.yaml").
+const STYLES_DIR = "docs/assets/styles";
+function resolveActive() {
+  const pointer = resolve(`${STYLES_DIR}/active.yaml`);
+  if (!existsSync(pointer)) return null;
+  const m = readFileSync(pointer, "utf8").match(/^\s*active:\s*(.+?)\s*$/m);
+  if (!m) return null;
+  return resolve(STYLES_DIR, m[1].replace(/^["']|["']$/g, ""));
+}
+
 const args = parseArgs(process.argv.slice(2));
-const file = resolve(args.in || "docs/assets/style/style-profile.yaml/<id>.yaml");
+const file = args.in ? resolve(args.in) : resolveActive();
+if (!file) {
+  console.error(`No --in given and no active profile at ${STYLES_DIR}/active.yaml (expected "active: style-profile-<slug>.yaml"). See the STYLE PROFILE section of the asset-canon skill.`);
+  process.exit(1);
+}
 if (!existsSync(file)) {
   console.error(`No style profile at ${file}. See the STYLE PROFILE section of the asset-canon skill for the shape to write.`);
   process.exit(1);

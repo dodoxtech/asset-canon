@@ -5,7 +5,7 @@
 - New `asset-style-extract` skill: analyze a reference image the user imports and
   reverse-engineer a reusable style profile from it — palette (with roles +
   weights), ramps, medium, line, shading, light, proportions, post-FX — written
-  to `docs/assets/style/style-profile.yaml/<id>.yaml` so every later asset is generated in the same look
+  to `docs/assets/styles/style-profile-<slug>.yaml` so every later asset is generated in the same look
   as the reference. Extracts *style, not subject*; marks per-field `confidence`
   and confirms the judgment calls before writing. New `scripts/extract-palette.mjs`
   measures the "(A)" half (dominant palette + area weights, saturation/
@@ -19,7 +19,14 @@
   prompts. The `scripts/` are demoted to an **optional** repo/CI convenience —
   never required, never the only path. A user who only installed the skill is
   never told to download or run a bundled script.
-- Shared style profile for cross-asset consistency: `docs/assets/style/style-profile.yaml/<id>.yaml`
+- Style profiles now live as flat files under `docs/assets/styles/` (shared
+  `style-profile-<slug>.yaml` alongside per-asset `style-profile-<slug>.yaml`
+  snapshots), replacing the old `docs/assets/style/style-profile.yaml/<id>.yaml`
+  directory layout. A one-line pointer `docs/assets/styles/active.yaml`
+  (`active: style-profile-<slug>.yaml`) names which shared profile is in force, so
+  multiple versions can coexist and switching looks = repointing it.
+  `validate-style-profile.mjs` resolves through `active.yaml` when no `--in` is given.
+- Shared style profile for cross-asset consistency: `docs/assets/styles/style-profile-<slug>.yaml`
   (shape documented in the skill's STYLE PROFILE section) is a single style
   context every generation reads — the design-tokens-as-style-brief pattern applied to image
   gen. `codex-imagegen.mjs --style-profile` appends `prompt_suffix` + an

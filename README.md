@@ -4,6 +4,16 @@ Codex-powered **image asset generation** skills + commands for AI coding agents 
 
 Turn a one-line brief into production-ready image files on disk — icons, illustrations, sprites, textures, and social/OG images — with a deterministic pipeline: **brief → plan → generate (Codex) → optimize → write → report.**
 
+![Asset-Canon pixel README showcase](assets/social/asset-canon-readme-pixel-v2-1704x923.png)
+
+## What it can do
+
+- Route a plain-language brief to the right specialist: icon, illustration, sprite, texture, or social.
+- Keep a batch visually consistent with a shared style profile, palette, and prompt suffix.
+- Write production-ready assets to disk with deterministic names and framework-aware output paths.
+- Emit sidecar YAML descriptors so another agent can place an asset without opening the image.
+- Re-run future generations from the saved style profile instead of re-guessing the look.
+
 ## Install
 
 ### Via `npx skills add` (Vercel Agent Skills)
@@ -44,7 +54,7 @@ BRIEF  →  PLAN  →  GENERATE  →  OPTIMIZE  →  WRITE  →  VERIFY  →  RE
 | Step | What the agent does |
 |---|---|
 | **BRIEF** | Reads your request (or you run `/asset-new` to scaffold one). |
-| **PLAN** | Picks the right specialist (icon / illustration / sprite / texture / social), locks **one** palette + style (written to `docs/assets/style/style-profile.yaml/<id>.yaml`), and **detects your framework** to choose where assets go (Next.js → `public/assets/`, fallback → `assets/`). |
+| **PLAN** | Picks the right specialist (icon / illustration / sprite / texture / social), locks **one** palette + style (written to `docs/assets/styles/style-profile-<slug>.yaml`), updates `docs/assets/styles/active.yaml`, and **detects your framework** to choose where assets go (Next.js → `public/assets/`, fallback → `assets/`). |
 | **GENERATE** | Calls an **image model** (Codex CLI or OpenAI `gpt-image-1`) to render the pixels. Never draws art in code. Renders on a chroma-green plate when a transparent background is needed. |
 | **OPTIMIZE** | Keys out the background to real alpha (tolerance-based, then re-checked for residue), downscales to a size ladder, exports webp/png/ico, packs sprite sheets, strips metadata. |
 | **WRITE** | Saves the image files in your framework's static folder (e.g. `public/assets/icons/`) with deterministic names (`cart-icon-line-512x512.png`), a descriptor in `docs/assets/`, and a per-asset style snapshot in `docs/assets/styles/`. |
@@ -56,9 +66,23 @@ BRIEF  →  PLAN  →  GENERATE  →  OPTIMIZE  →  WRITE  →  VERIFY  →  RE
 1. **Install** (above).
 2. **Ask** the agent for assets — or run `/asset-gen` with a brief.
 3. The agent generates, optimizes, and **writes real files to disk** in your project.
-4. Done. Re-run anytime; the saved `style-profile.yaml` keeps new assets consistent with old ones.
+4. Done. Re-run anytime; the active shared style profile (`docs/assets/styles/active.yaml` -> `style-profile-<slug>.yaml`) keeps new assets consistent with old ones.
 
 > You need an **image model** reachable: either the Codex CLI, or set `OPENAI_API_KEY`. Without one, the skill stops and tells you — it will never fake an asset by drawing it in code. See [Requirements](#requirements).
+
+### Example prompts
+
+```text
+Generate a flat line icon set for my store: cart, search, profile.
+```
+
+```text
+Create a cohesive asset pack for a cozy fantasy game: player sprite, terrain textures, and an OG card.
+```
+
+```text
+Match this reference image style and generate three marketing illustrations for a docs site.
+```
 
 ## Files the skill reads & writes
 
@@ -66,7 +90,8 @@ These appear **in your own project** as you generate. You rarely edit them by ha
 
 | File / folder | Role | Who writes it |
 |---|---|---|
-| `docs/assets/style/style-profile.yaml/<id>.yaml` | **The shared look (project source).** One palette, line weight, shading, `prompt_suffix`, anti-slop `negative` list, and `seed`. Every generation reads it so a whole project stays visually consistent. Written once, reused forever. | Skill (on first PLAN) — commit it |
+| `docs/assets/styles/active.yaml` | **Active-style pointer.** A one-line `active: style-profile-<slug>.yaml` naming which shared profile is currently in force. Readers resolve the shared look through this file first. | Skill (PLAN / RESTYLE / style-extract) — commit it |
+| `docs/assets/styles/style-profile-<slug>.yaml` | **The shared look (project source).** One palette, line weight, shading, `prompt_suffix`, anti-slop `negative` list, and `seed`. Every generation reads it so a whole project stays visually consistent. Written once, reused forever. | Skill (on first PLAN) — commit it |
 | `<static-dir>/assets/<type>/<slug>-<variant>-<WxH>.<ext>` | **The actual asset files**, written to your framework's static folder — `public/assets/` (Next.js, Astro, Vite, CRA…), `static/assets/` (SvelteKit, Hugo…), `src/assets/` (Angular), or `assets/` if no framework is detected. Deterministic, lowercase-kebab names; transparent PNG where it matters, plus the webp/png/ico ladder. | Skill (GENERATE + OPTIMIZE) |
 | `docs/assets/<slug>.yaml` | **Sidecar descriptor.** Machine-readable record of each asset's content, style, and intended placement — so another agent can place the asset correctly **without opening the image**. | Skill (WRITE) |
 | `docs/assets/styles/style-profile-<slug>.yaml` | **Per-asset style snapshot.** The *resolved* style recipe that produced this one asset (shared profile + any per-asset overrides). Point a future generation at it to reproduce or make a faithful variant. | Skill (WRITE) |
@@ -100,6 +125,8 @@ These appear **in your own project** as you generate. You rarely edit them by ha
 - **An image model** — the [generate step](#pipeline-scripts) calls Codex CLI or the OpenAI image API (`OPENAI_API_KEY`). Assets are always rendered by a model, never drawn in code.
 - **[`sharp`](https://sharp.pixelplumbing.com/)** — *optional*, for the pixel-processing steps. It's declared as an `optionalDependency`, so installing the skill does **not** pull it in automatically.
 
+If `sharp` is missing, the skill should say so plainly and stop before background keying, resize/export ladders, or image QA. It can still deliver the raw generated source image, but it should not pretend the full post-process pipeline ran.
+
 ### Do I need `sharp`?
 
 `sharp` does all the work that touches pixels: resizing, format export, composing a sprite sheet, and measuring real dimensions. Generation itself does not use it.
@@ -126,17 +153,17 @@ The skills are **instruction-first**: an agent runs the whole pipeline with its 
 
 ```bash
 # define the shared style once, validate it, then every asset inherits it
-node scripts/validate-style-profile.mjs --in docs/assets/style/style-profile.yaml/<id>.yaml
+node scripts/validate-style-profile.mjs --in docs/assets/styles/style-profile-<slug>.yaml
 
 # reverse-engineer the measurable palette/color from a reference image, to paste
-# into docs/assets/style/style-profile.yaml/<id>.yaml (the asset-style-extract skill; needs sharp)
+# into docs/assets/styles/style-profile-<slug>.yaml (the asset-style-extract skill; needs sharp)
 node scripts/extract-palette.mjs --in docs/assets/refs/hero.png --colors 12
 
 # generate one asset (Codex CLI backend, or OpenAI image API if OPENAI_API_KEY is set)
 # --style-profile appends the shared style suffix + anti-slop guard + seed
 node scripts/codex-imagegen.mjs --prompt "minimal line icon of a cart" \
   --size 1024x1024 --background transparent \
-  --style-profile docs/assets/style/style-profile.yaml/<id>.yaml \
+  --style-profile docs/assets/styles/style-profile-<slug>.yaml \
   --out assets/generated/icons/cart-icon-line-1024x1024.png
 
 # optimize a folder into a size/format ladder (needs `npm install` for sharp)
@@ -191,9 +218,11 @@ asset-canon/
 │   ├── validate-descriptors.mjs # descriptor gate (every asset described)
 │   └── validate-style-profile.mjs # gate the shared style profile
 ├── docs/
-│   ├── style-profile.yaml   # shared style context (shape documented in the skill)
 │   └── assets/              # one YAML descriptor per asset
-│       └── styles/          # one resolved style snapshot per asset (style-profile-<slug>.yaml)
+│       └── styles/          # shared profiles + active pointer + per-asset snapshots
+│           ├── active.yaml
+│           ├── style-profile-<style-slug>.yaml
+│           └── style-profile-<asset-slug>.yaml
 ├── assets/                  # generated output + brief templates
 ├── examples/                # sample outputs
 ├── skill.sh                 # local install-name -> path registry

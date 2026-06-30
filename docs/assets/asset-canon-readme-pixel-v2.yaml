@@ -1,0 +1,59 @@
+id: asset-canon-readme-pixel-v2
+type: social
+subject: Pixel-art README hero for asset-canon
+description: >-
+  A wide pixel-art showcase banner with the centered text "asset-canon" surrounded by sample icons,
+  fox sprite frames, texture swatches, and scenic card art to demonstrate the kinds of assets the
+  project can generate.
+keywords:
+  - asset-canon
+  - readme
+  - pixel-art
+  - showcase
+  - icons
+  - sprites
+  - textures
+  - social-card
+placement:
+  intended_use: Top-of-README hero image for the repository overview
+  context: GitHub README and repository documentation
+  do:
+    - Use at the top of the README as a visual summary of supported asset types
+    - Pair with short copy about the deterministic asset pipeline
+  dont:
+    - Do not crop enough to hide the centered title
+    - Do not overlay more text on top of the image
+style:
+  art_style: retro pixel showcase
+  shading: warm low-contrast pixel lighting
+palette:
+  - "#161A22"
+  - "#F5D6A0"
+  - "#F2E7C8"
+  - "#E85D34"
+  - "#4A7A78"
+  - "#E1A53A"
+background: full-bleed
+platform:
+  name: README
+  size: 1704x923
+safe_area: inner 90%
+text_overlay:
+  required: false
+  notes: Title is baked into the generated pixel-art image at the user's request
+dimensions:
+  master: 1704x923
+  aspect: "1704:923"
+accessibility:
+  alt_text: Pixel-art banner reading asset-canon, surrounded by icons, sprite frames, textures, and scenic card art
+files:
+  - path: assets/social/asset-canon-readme-pixel-v2-1704x923.png
+    size: 1704x923
+    format: png
+    bytes: 2391782
+source:
+  model: built-in image_gen
+  prompt: >-
+    Create a wide pixel-art banner for the asset-canon project with the exact text "asset-canon"
+    centered prominently in the middle, surrounded by icons, sprite strips, texture samples,
+    and social-card examples in one cohesive pixel-art style.

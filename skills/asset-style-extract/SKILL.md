@@ -1,11 +1,11 @@
 ---
 name: asset-style-extract
-description: Analyze a reference image the user imports and reverse-engineer a reusable style profile from it — palette, ramps, medium, line, shading, light, proportions, post-FX — written to docs/assets/style/style-profile.yaml/<id>.yaml so every later asset is generated in the SAME look as the reference. Use when the user says "match this image", "use this as the style", "make assets that look like this", "extract the style from this", or imports a screenshot/art reference to anchor a set.
+description: Analyze a reference image the user imports and reverse-engineer a reusable style profile from it — palette, ramps, medium, line, shading, light, proportions, post-FX — written to docs/assets/styles/style-profile-<slug>.yaml so every later asset is generated in the SAME look as the reference. Use when the user says "match this image", "use this as the style", "make assets that look like this", "extract the style from this", or imports a screenshot/art reference to anchor a set.
 ---
 
 # ASSET-STYLE-EXTRACT
 
-Turn **one reference image into a reusable style contract.** The user imports an image; you *read the style out of it* — not the subject — and write a `docs/assets/style/style-profile.yaml/<id>.yaml` that the generation pipeline (`asset-canon` + specialists) reads on every later asset so the whole set looks like the reference.
+Turn **one reference image into a reusable style contract.** The user imports an image; you *read the style out of it* — not the subject — and write a `docs/assets/styles/style-profile-<slug>.yaml` that the generation pipeline (`asset-canon` + specialists) reads on every later asset so the whole set looks like the reference.
 
 This skill **does not generate any asset.** Its only output is a **style profile** (and optionally a saved copy of the reference). After it runs, generation continues through the normal pipeline, which already reads the profile ([asset-canon] STYLE PROFILE + GENERATE).
 
@@ -18,7 +18,7 @@ INGEST  ->  ANALYZE (A: measured · V: judged)  ->  DRAFT PROFILE  ->  CONFIRM l
 1. **Actually look at the image.** Read the file with the vision-capable model and inspect pixels with code. **Never invent a palette or a style from the filename or the subject noun** — a profile that wasn't measured against the image is worthless. If no image is reachable or it can't be opened, stop and say so.
 2. **Extract STYLE, not SUBJECT.** The reference shows *a knight* — the profile must capture *how it's drawn* (pixel-art, 3-tone cel, top-left light, selout outline), **never** "a knight." Bake the *medium and treatment* into `prompt_suffix`; leave the *what* to each later brief. Overfitting the subject into the profile is the #1 failure of this skill.
 3. **Mark confidence; don't fake certainty.** Some fields are measurable (palette, contrast, aspect); some are a judgment call (hue-shift, shading model, stylization). Record a `confidence` per group and **confirm the low-confidence ones with the user before writing** — a senior stylist says "I read this as cel-shaded, ~70% sure," not a flat assertion.
-4. **One reference → one profile version.** Extracting from a new reference **bumps the `id`** (e.g. `ref-hero-v1`). Don't silently overwrite an existing `docs/assets/style/style-profile.yaml/<id>.yaml` from a different source — show before→after and confirm, exactly like [asset-canon] RESTYLE.
+4. **One reference → one profile version.** Extracting from a new reference **bumps the `id`** (e.g. `ref-hero-v1`). Don't silently overwrite an existing `docs/assets/styles/style-profile-<slug>.yaml` from a different source — show before→after and confirm, exactly like [asset-canon] RESTYLE.
 5. **Stay backward-compatible.** The profile you write must still satisfy the canonical shape in [asset-canon] STYLE PROFILE: `palette` is a **flat hex list** (required), `prompt_suffix` and `id` required. All the richer analysis (`swatches`, `ramps`, `color`, `fx`, `confidence`, `source_ref`, `medium`) goes in the **optional** blocks so the validator and every existing reader still work.
 
 ## 1. INGEST — get the reference on disk
@@ -79,7 +79,7 @@ Check `sharp` is reachable first (`node -e "require('sharp')"`); if missing, rec
 
 ## 4. DRAFT THE PROFILE — extended, backward-compatible shape
 
-Same file the pipeline already reads (`docs/assets/style/style-profile.yaml/<id>.yaml`); the new blocks are **all optional** so the validator and every existing reader keep working.
+Same file the pipeline already reads (`docs/assets/styles/style-profile-<slug>.yaml`); the new blocks are **all optional** so the validator and every existing reader keep working.
 
 ```yaml
 id: ref-hero-v1                      # required — bump per new reference
@@ -145,9 +145,9 @@ A senior stylist confirms judgment calls; only measured fields ship without aski
 
 ## 6. WRITE + HAND OFF
 
-- **Write `docs/assets/style/style-profile.yaml/<id>.yaml`** (the shared project profile) with the agreed shape above. If a profile already exists from a *different* source, bump `id` and show before→after rather than clobbering it (see [asset-canon] RESTYLE).
+- **Write `docs/assets/styles/style-profile-<slug>.yaml`** (the shared project profile) with the agreed shape above, then point `docs/assets/styles/active.yaml` at it (`active: style-profile-<slug>.yaml`) so the pipeline picks up the new look. If a profile already exists from a *different* source, write the new one under its own `id` and repoint `active.yaml` — show before→after rather than clobbering the old file (see [asset-canon] RESTYLE).
 - **Save the reference** under `docs/assets/refs/` if not already there, matching `source_ref`.
-- **Sanity-check by reading back**: `id`, a hex `palette`, and `prompt_suffix` are present (the same gate the pipeline expects). *(Optional: `validate-style-profile.mjs --in docs/assets/style/style-profile.yaml/<id>.yaml`.)*
+- **Sanity-check by reading back**: `id`, a hex `palette`, and `prompt_suffix` are present (the same gate the pipeline expects). *(Optional: `validate-style-profile.mjs --in docs/assets/styles/style-profile-<slug>.yaml`.)*
 - **Hand off — don't generate here.** Tell the user the profile is set and what to do next:
   - new assets in this look → describe the subject; the normal pipeline applies the profile automatically;
   - bring an existing set into this look → that's the [asset-canon] **RESTYLE** flow (profile is already updated → confirm → regenerate from descriptors).

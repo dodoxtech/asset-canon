@@ -1,0 +1,19 @@
+id: style-profile-asset-canon-readme-pixel-v2
+source_profile: readme-pixel
+type: social
+palette:
+  - "#161A22"
+  - "#F5D6A0"
+  - "#F2E7C8"
+  - "#E85D34"
+  - "#4A7A78"
+  - "#E1A53A"
+prompt_suffix: >-
+  Show a pixel-art asset board with icons, sprite frames, texture swatches, and scenic social-card
+  samples around a large centered lowercase asset-canon wordmark.
+negative:
+  - blurry lettering
+  - misspelled text
+  - clutter
+  - futuristic neon
+seed: readme-pixel-v2
